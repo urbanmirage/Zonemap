@@ -99,7 +99,12 @@
     <div id="loginOverlay" class="fixed inset-0 bg-black z-[99999] flex flex-col items-center justify-center text-white transition-opacity duration-500">
         <h1 class="text-6xl md:text-8xl font-black tracking-widest mb-10 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">TRICON</h1>
         <div class="flex flex-col sm:flex-row gap-3 w-full max-w-sm px-6">
-            <input type="password" id="passcodeInput" class="flex-1 bg-gray-900 text-white border border-gray-700 px-4 py-3 rounded text-center sm:text-left focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors tracking-widest" placeholder="passcode" autocomplete="off">
+            <div class="relative flex-1">
+                <input type="password" id="passcodeInput" class="w-full bg-gray-900 text-white border border-gray-700 px-4 py-3 pr-10 rounded text-center sm:text-left focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors tracking-widest" placeholder="passcode" autocomplete="off">
+                <button type="button" id="togglePasscodeBtn" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1" title="Toggle visibility">
+                    <i class="fa-solid fa-eye" id="togglePasscodeIcon"></i>
+                </button>
+            </div>
             <button id="loginBtn" class="bg-white hover:bg-gray-200 text-black px-8 py-3 rounded font-bold uppercase tracking-wider transition-colors">go</button>
         </div>
         <p id="loginError" class="text-red-500 mt-4 text-sm opacity-0 transition-opacity duration-300">Invalid Passcode</p>
@@ -728,12 +733,34 @@
 
         // Login Logic
         const passcodeInput = document.getElementById('passcodeInput');
+        const togglePasscodeBtn = document.getElementById('togglePasscodeBtn');
+        const togglePasscodeIcon = document.getElementById('togglePasscodeIcon');
+
+        // Toggle Passcode Visibility
+        togglePasscodeBtn.addEventListener('click', () => {
+            if (passcodeInput.type === 'password') {
+                passcodeInput.type = 'text';
+                togglePasscodeIcon.classList.remove('fa-eye');
+                togglePasscodeIcon.classList.add('fa-eye-slash');
+            } else {
+                passcodeInput.type = 'password';
+                togglePasscodeIcon.classList.remove('fa-eye-slash');
+                togglePasscodeIcon.classList.add('fa-eye');
+            }
+            passcodeInput.focus();
+        });
+
         function handleLogin() {
             if (passcodeInput.value === 'mddmms') {
                 document.getElementById('loginOverlay').classList.add('hidden');
             } else {
                 document.getElementById('loginError').style.opacity = '1';
                 passcodeInput.value = '';
+                // reset to password view if it was visible
+                passcodeInput.type = 'password';
+                togglePasscodeIcon.classList.remove('fa-eye-slash');
+                togglePasscodeIcon.classList.add('fa-eye');
+
                 setTimeout(() => document.getElementById('loginError').style.opacity = '0', 2000);
             }
         }
