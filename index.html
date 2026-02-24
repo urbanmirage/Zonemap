@@ -5,16 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tricon</title>
     
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- html2canvas for Screenshot -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
@@ -37,31 +30,47 @@
         }
 
         @keyframes pulse-red {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            0 { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
             70% { transform: scale(1.3); box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
-        .note-marker {
-            background: #fef08a;
-            border: 1px solid #eab308;
-            border-radius: 4px;
-            padding: 2px 6px;
-            font-size: 11px;
-            font-weight: bold;
-            color: #854d0e;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-            white-space: nowrap;
+        /* Joystick Styles */
+        #joystickContainer {
+            position: absolute;
+            bottom: 180px;
+            right: 20px;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(4px);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            z-index: 2000;
+            display: none;
+            touch-action: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
-        .leaflet-zoom-animated {
-            will-change: transform;
+        #joystickKnob {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            pointer-events: none;
         }
 
         /* Hide controls during screenshot */
         .is-screenshotting .leaflet-control-container,
         .is-screenshotting #sidebar,
-        .is-screenshotting #mobileHeader {
+        .is-screenshotting #mobileHeader,
+        .is-screenshotting #joystickContainer,
+        .is-screenshotting #customZoomControl {
             display: none !important;
         }
 
@@ -95,7 +104,6 @@
 </head>
 <body class="flex flex-col md:flex-row h-screen bg-gray-100 font-sans relative overflow-hidden">
 
-    <!-- Login Screen Overlay -->
     <div id="loginOverlay" class="fixed inset-0 bg-black z-[99999] flex flex-col items-center justify-center text-white transition-opacity duration-500">
         <h1 class="text-6xl md:text-8xl font-black tracking-widest mb-10 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">TRICON</h1>
         <div class="flex flex-col sm:flex-row gap-3 w-full max-w-sm px-6">
@@ -110,11 +118,22 @@
         <p id="loginError" class="text-red-500 mt-4 text-sm opacity-0 transition-opacity duration-300">Invalid Passcode</p>
     </div>
 
-    <!-- Map Container -->
     <div id="map" class="absolute inset-0 md:relative md:flex-1 h-full w-full z-[1] bg-slate-50"></div>
 
-    <!-- Sidebar -->
-    <div id="sidebar" class="w-full md:w-96 bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.15)] md:shadow-xl z-[1000] flex flex-col absolute bottom-0 md:relative md:h-full rounded-t-3xl md:rounded-none h-[85vh] md:max-h-full">
+    <div id="customZoomControl" class="absolute right-4 top-4 md:right-6 md:top-6 z-[2000] flex flex-col gap-0 shadow-lg rounded-xl overflow-hidden bg-white/90 backdrop-blur border border-gray-200">
+        <button id="zoomInBtn" class="w-10 h-10 text-gray-700 hover:text-blue-600 hover:bg-gray-50 flex items-center justify-center transition-colors border-b border-gray-200" title="Zoom In (Smooth)">
+            <i class="fa-solid fa-plus text-lg"></i>
+        </button>
+        <button id="zoomOutBtn" class="w-10 h-10 text-gray-700 hover:text-blue-600 hover:bg-gray-50 flex items-center justify-center transition-colors" title="Zoom Out (Smooth)">
+            <i class="fa-solid fa-minus text-lg"></i>
+        </button>
+    </div>
+
+    <div id="joystickContainer">
+        <div id="joystickKnob"></div>
+    </div>
+
+    <div id="sidebar" class="w-full md:w-[380px] bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.15)] md:shadow-xl z-[1000] flex flex-col absolute bottom-0 md:relative md:h-full rounded-t-3xl md:rounded-none h-[85vh] md:max-h-full">
         <div id="mobileHeader" class="md:cursor-default cursor-pointer bg-gradient-to-r from-blue-600 to-indigo-700 rounded-t-3xl md:rounded-none shrink-0 shadow-md">
             <div class="md:hidden w-full flex items-center justify-center pt-3 pb-1">
                 <div class="w-12 h-1.5 bg-white/40 rounded-full"></div>
@@ -124,7 +143,7 @@
                     <h1 class="text-xl font-bold flex items-center gap-2">
                         <i class="fa-solid fa-draw-polygon"></i> Tricon
                     </h1>
-                    <p class="text-xs text-blue-100 mt-1 opacity-90 hidden md:block">Find all streets inside your custom shape.</p>
+                    <p class="text-xs text-blue-100 mt-1 opacity-90 hidden md:block">Map, draw, and find streets.</p>
                 </div>
                 <div class="md:hidden flex items-center gap-2 text-xs font-medium bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full transition-colors">
                     <span id="mobileToggleText">Menu</span>
@@ -133,45 +152,54 @@
             </div>
         </div>
 
-        <div class="p-4 border-b border-gray-100 bg-gray-50 flex flex-col gap-2 shrink-0">
-            <div class="flex gap-2">
-                <button id="drawBtn" class="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 hover:border-blue-300 transition-all flex items-center justify-center gap-2 shadow-sm">
-                    <i class="fa-solid fa-pen-nib"></i> <span id="drawBtnText">Start Drawing</span>
+        <div class="p-3 border-b border-gray-100 bg-gray-50 flex flex-col gap-2 shrink-0">
+            <!-- Drawing Tools -->
+            <div class="flex gap-1.5">
+                <button id="drawBtn" class="flex-1 bg-white border border-gray-300 text-gray-700 px-2 py-2 rounded-lg text-xs font-bold hover:bg-blue-50 transition-all flex flex-col items-center justify-center gap-1 shadow-sm">
+                    <i class="fa-solid fa-draw-polygon text-base"></i> <span id="drawBtnText">Area</span>
                 </button>
-                <button id="resetBtn" class="bg-white border border-gray-300 text-gray-500 px-3 py-2 rounded-lg hover:text-red-500 hover:border-red-200 transition-all shadow-sm" title="Clear Map">
-                    <i class="fa-solid fa-trash"></i>
+                <button id="drawLineBtn" class="flex-1 bg-white border border-gray-300 text-gray-700 px-2 py-2 rounded-lg text-xs font-bold hover:bg-blue-50 transition-all flex flex-col items-center justify-center gap-1 shadow-sm">
+                    <i class="fa-solid fa-route text-base"></i> <span id="drawLineBtnText">Line</span>
+                </button>
+                <button id="dotBtn" class="flex-1 bg-white border border-gray-300 text-gray-700 px-2 py-2 rounded-lg text-xs font-bold hover:bg-yellow-50 transition-all flex flex-col items-center justify-center gap-1 shadow-sm">
+                    <i class="fa-solid fa-location-dot text-base"></i> <span id="dotBtnText">Dot</span>
+                </button>
+                <button id="resetBtn" class="bg-white border border-gray-300 text-gray-500 px-3 py-2 rounded-lg hover:text-red-500 transition-all shadow-sm flex flex-col items-center justify-center gap-1" title="Clear Map">
+                    <i class="fa-solid fa-trash text-base"></i> <span>Clear</span>
                 </button>
             </div>
             
-            <div class="flex gap-2">
-                <button id="exportBtn" class="flex-1 bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 transition-all shadow-sm flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-file-export"></i> Export
+            <!-- Screenshot Tools -->
+            <div class="flex gap-1.5">
+                <button id="screenshotAreaBtn" class="flex-1 bg-indigo-600 text-white px-2 py-1.5 rounded-lg text-[11px] font-bold hover:bg-indigo-700 transition-all shadow-sm flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-crop-simple"></i> HD Area
+                </button>
+                <button id="screenshotViewBtn" class="flex-1 bg-blue-600 text-white px-2 py-1.5 rounded-lg text-[11px] font-bold hover:bg-blue-700 transition-all shadow-sm flex items-center justify-center gap-1" title="Capture entire high-res map view">
+                    <i class="fa-solid fa-camera"></i> HD View
+                </button>
+            </div>
+
+            <!-- Save / Load -->
+            <div class="flex gap-1.5">
+                <button id="exportBtn" class="flex-1 bg-white border border-gray-300 text-gray-600 px-2 py-1.5 rounded-lg text-[11px] font-medium hover:bg-gray-100 transition-all shadow-sm flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-file-export"></i> Save Data
                 </button>
                 <div class="flex-1 relative cursor-pointer group">
-                    <input type="file" id="importFile" accept=".json" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Import Data">
-                    <button class="w-full h-full bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-medium group-hover:bg-gray-100 transition-all shadow-sm flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-file-import"></i> Import
+                    <input type="file" id="importFile" accept=".json" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Open Save">
+                    <button class="w-full h-full bg-white border border-gray-300 text-gray-600 px-2 py-1.5 rounded-lg text-[11px] font-medium group-hover:bg-gray-100 transition-all shadow-sm flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-file-import"></i> Open Data
                     </button>
                 </div>
             </div>
 
-            <div class="flex gap-2">
-                <button id="commentBtn" class="flex-1 bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-yellow-50 hover:border-yellow-300 transition-all shadow-sm flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-comment-dots"></i> Add Comment
-                </button>
-                <button id="screenshotBtn" class="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 transition-all shadow-sm flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-camera"></i> Screenshot
-                </button>
-            </div>
-
-            <button id="finishBtn" class="hidden w-full bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-all shadow-md items-center justify-center gap-2">
-                <i class="fa-solid fa-check"></i> Close Shape Now
+            <button id="finishBtn" class="hidden w-full bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-all shadow-md items-center justify-center gap-2 mt-1">
+                <i class="fa-solid fa-check"></i> <span id="finishBtnText">Close Shape</span>
             </button>
         </div>
 
         <div id="statusPanel" class="px-6 py-2 bg-blue-50 text-blue-800 text-xs font-medium border-b border-blue-100 shrink-0 flex items-center">
             <i class="fa-solid fa-circle-info mr-2"></i> 
-            <span id="statusText">Click "Start Drawing" to begin.</span>
+            <span id="statusText">Select a tool to begin. Auto-save is active.</span>
         </div>
 
         <div class="flex-1 overflow-hidden flex flex-col relative min-h-0 bg-gray-100">
@@ -188,13 +216,14 @@
             <div id="resultsList" class="flex-1 overflow-y-auto scroller p-2 space-y-1">
                 <div class="h-full flex flex-col items-center justify-center text-gray-400 p-6 text-center">
                     <i class="fa-solid fa-map text-4xl mb-3 opacity-30"></i>
-                    <p class="text-sm">No area selected.</p>
+                    <p class="text-sm">No map items created yet.</p>
                 </div>
             </div>
 
-            <div id="loader" class="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center hidden">
-                <i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-2xl mb-2"></i>
-                <p class="text-sm font-medium text-gray-600" id="loaderText">Identifying Streets...</p>
+            <div id="loader" class="absolute inset-0 bg-white/90 z-[2500] flex flex-col items-center justify-center hidden">
+                <i class="fa-solid fa-circle-notch fa-spin text-blue-600 text-3xl mb-3"></i>
+                <p class="text-sm font-bold text-gray-800" id="loaderText">Processing...</p>
+                <p class="text-xs text-gray-500 mt-1" id="loaderSubText"></p>
             </div>
         </div>
         
@@ -203,23 +232,34 @@
         </div>
     </div>
 
-    <!-- Note Modal -->
-    <div id="noteModal" class="hidden fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
+    <!-- Modals -->
+    <div id="dotModal" class="hidden fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
-            <h3 class="text-lg font-bold text-gray-800 mb-4">Add Map Note</h3>
-            <input type="text" id="noteInput" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none mb-4" placeholder="Type your note here...">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Add Dot Settings</h3>
+            
+            <label class="block text-xs font-bold text-gray-600 mb-2">Dot Color</label>
+            <div class="flex gap-3 mb-5" id="dotColorPicker">
+                <button class="color-btn w-6 h-6 rounded-full ring-2 ring-offset-2 ring-red-500 bg-red-500 transition-all" data-color="#ef4444"></button>
+                <button class="color-btn w-6 h-6 rounded-full ring-2 ring-offset-2 ring-transparent bg-blue-500 transition-all" data-color="#3b82f6"></button>
+                <button class="color-btn w-6 h-6 rounded-full ring-2 ring-offset-2 ring-transparent bg-green-500 transition-all" data-color="#10b981"></button>
+                <button class="color-btn w-6 h-6 rounded-full ring-2 ring-offset-2 ring-transparent bg-yellow-400 transition-all" data-color="#facc15"></button>
+                <button class="color-btn w-6 h-6 rounded-full ring-2 ring-offset-2 ring-transparent bg-purple-500 transition-all" data-color="#a855f7"></button>
+            </div>
+
+            <label class="block text-xs font-bold text-gray-600 mb-2">Label Text (Optional)</label>
+            <input type="text" id="dotInput" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none mb-5" placeholder="Enter text label...">
+            
             <div class="flex gap-2">
-                <button id="cancelNoteBtn" class="flex-1 bg-gray-100 text-gray-600 font-bold py-2 rounded-lg hover:bg-gray-200">Cancel</button>
-                <button id="saveNoteBtn" class="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700">Save Pin</button>
+                <button id="cancelDotBtn" class="flex-1 bg-gray-100 text-gray-600 font-bold py-2 rounded-lg hover:bg-gray-200">Cancel</button>
+                <button id="saveDotBtn" class="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700">Add Dot</button>
             </div>
         </div>
     </div>
 
-    <!-- Manual Street Add Modal -->
     <div id="streetAddModal" class="hidden fixed inset-0 bg-black/50 z-[10001] flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
             <h3 class="text-lg font-bold text-gray-800 mb-2">Add Streets Manually</h3>
-            <p class="text-xs text-gray-500 mb-4">You can add multiple streets separated by commas (e.g., Alvarez, Gladiola, Madrigal).</p>
+            <p class="text-xs text-gray-500 mb-4">You can add multiple streets separated by commas.</p>
             <textarea id="streetNamesInput" rows="3" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none mb-4 text-sm" placeholder="Street Name 1, Street Name 2..."></textarea>
             <div class="flex gap-2">
                 <button id="cancelStreetBtn" class="flex-1 bg-gray-100 text-gray-600 font-bold py-2 rounded-lg hover:bg-gray-200">Cancel</button>
@@ -228,9 +268,8 @@
         </div>
     </div>
 
-    <!-- View List Popup -->
     <div id="viewPopup" class="hidden fixed inset-0 bg-black/70 z-[10000] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-gray-50">
                 <div class="flex items-center gap-3">
                     <div id="viewPopupColor" class="w-4 h-4 rounded-full shadow-inner"></div>
@@ -245,9 +284,7 @@
                     </button>
                 </div>
             </div>
-            <div id="viewPopupContent" class="flex-1 overflow-y-auto p-6 scroller bg-white">
-                <!-- Streets will be injected here -->
-            </div>
+            <div id="viewPopupContent" class="flex-1 overflow-y-auto p-6 scroller bg-white"></div>
             <div class="p-4 border-t bg-gray-50 flex gap-3">
                 <button id="viewPopupCopyBtn" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
                     <i class="fa-regular fa-copy"></i> Copy All to Clipboard
@@ -256,7 +293,6 @@
         </div>
     </div>
 
-    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <script>
@@ -271,63 +307,84 @@
         const SHAPE_COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#14b8a6', '#f43f5e'];
 
         const state = {
-            activeShapeIdInView: null, // Shape currently being edited via manual add or view popup
-            isDrawing: false,
-            isCommenting: false,
-            pendingNoteLatLng: null,
+            activeShapeIdInView: null,
+            drawMode: 'none', // 'none', 'polygon', 'line', 'dot'
+            pendingDotLatLng: null,
+            selectedDotColor: '#ef4444',
             points: [],
             markers: [],
             tempLine: null,
             rubberBand: null,
-            shapes: [],
-            notes: [],
-            colorIndex: 0
+            shapes: [], // Stores both polygons and lines {id, type, name, color, layer, streets, latlngs}
+            dots: [],
+            colorIndex: 0,
+            
+            // Interaction state
+            isRightClickDragging: false,
+            lastRightClickPos: null,
+            joystickActive: false,
+            joystickLoop: null
+        };
+
+        const ssState = {
+            active: false,
+            pins: [], 
+            rect: null,
+            ui: null
         };
 
         const els = {
             map: document.getElementById('map'),
             drawBtn: document.getElementById('drawBtn'),
+            drawLineBtn: document.getElementById('drawLineBtn'),
+            dotBtn: document.getElementById('dotBtn'),
             finishBtn: document.getElementById('finishBtn'),
+            finishBtnText: document.getElementById('finishBtnText'),
             resetBtn: document.getElementById('resetBtn'),
             exportBtn: document.getElementById('exportBtn'),
             importFile: document.getElementById('importFile'),
-            commentBtn: document.getElementById('commentBtn'),
-            screenshotBtn: document.getElementById('screenshotBtn'),
+            screenshotViewBtn: document.getElementById('screenshotViewBtn'),
+            screenshotAreaBtn: document.getElementById('screenshotAreaBtn'),
             statusText: document.getElementById('statusText'),
             resultsList: document.getElementById('resultsList'),
             loader: document.getElementById('loader'),
             loaderText: document.getElementById('loaderText'),
+            loaderSubText: document.getElementById('loaderSubText'),
             countBadge: document.getElementById('countBadge'),
             copyAllGlobalBtn: document.getElementById('copyAllGlobalBtn'),
-            noteModal: document.getElementById('noteModal'),
-            noteInput: document.getElementById('noteInput'),
-            saveNoteBtn: document.getElementById('saveNoteBtn'),
-            cancelNoteBtn: document.getElementById('cancelNoteBtn'),
+            dotModal: document.getElementById('dotModal'),
+            dotInput: document.getElementById('dotInput'),
+            saveDotBtn: document.getElementById('saveDotBtn'),
+            cancelDotBtn: document.getElementById('cancelDotBtn'),
+            dotColorPicker: document.getElementById('dotColorPicker'),
             sidebar: document.getElementById('sidebar'),
             mobileHeader: document.getElementById('mobileHeader'),
             mobileToggleText: document.getElementById('mobileToggleText'),
-            
-            // Manual Add elements
+            joystickContainer: document.getElementById('joystickContainer'),
+            joystickKnob: document.getElementById('joystickKnob'),
             streetAddModal: document.getElementById('streetAddModal'),
             streetNamesInput: document.getElementById('streetNamesInput'),
             confirmStreetBtn: document.getElementById('confirmStreetBtn'),
             cancelStreetBtn: document.getElementById('cancelStreetBtn'),
-
-            // View Popup elements
             viewPopup: document.getElementById('viewPopup'),
             viewPopupTitle: document.getElementById('viewPopupTitle'),
             viewPopupColor: document.getElementById('viewPopupColor'),
             viewPopupContent: document.getElementById('viewPopupContent'),
             viewPopupCopyBtn: document.getElementById('viewPopupCopyBtn'),
             viewPopupAddBtn: document.getElementById('viewPopupAddBtn'),
-            closeViewPopup: document.getElementById('closeViewPopup')
+            closeViewPopup: document.getElementById('closeViewPopup'),
+            customZoomControl: document.getElementById('customZoomControl'),
+            zoomInBtn: document.getElementById('zoomInBtn'),
+            zoomOutBtn: document.getElementById('zoomOutBtn')
         };
 
         // Initialize Map
         const map = L.map('map', { 
             doubleClickZoom: false,
-            zoomControl: true,
-            preferCanvas: true 
+            zoomControl: false, 
+            preferCanvas: true,
+            zoomSnap: 0,
+            tap: false 
         }).setView([CONFIG.defaultLat, CONFIG.defaultLng], CONFIG.defaultZoom);
 
         L.tileLayer(CONFIG.tileUrl, { 
@@ -336,7 +393,75 @@
             crossOrigin: 'anonymous' 
         }).addTo(map);
 
-        setTimeout(() => map.invalidateSize(), 200);
+        // Custom Zoom Listeners
+        L.DomEvent.disableClickPropagation(els.customZoomControl);
+        L.DomEvent.disableScrollPropagation(els.customZoomControl);
+        els.zoomInBtn.addEventListener('click', (e) => { e.preventDefault(); map.flyTo(map.getCenter(), map.getZoom() + 1, { animate: true, duration: 0.8 }); });
+        els.zoomOutBtn.addEventListener('click', (e) => { e.preventDefault(); map.flyTo(map.getCenter(), map.getZoom() - 1, { animate: true, duration: 0.8 }); });
+
+        // Auto-Save Management
+        function saveToLocalStorage() {
+            const data = {
+                shapes: state.shapes.map(s => ({ id: s.id, type: s.type, name: s.name, color: s.color, streets: s.streets, latlngs: s.latlngs })),
+                dots: state.dots.map(d => ({ id: d.id, text: d.text, color: d.color, latlng: d.latlng }))
+            };
+            localStorage.setItem('tricon_autosave', JSON.stringify(data));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('tricon_autosave');
+            if (!saved) return;
+            try {
+                const data = JSON.parse(saved);
+                clearMap(false); // clear without saving
+
+                data.shapes?.forEach(s => {
+                    const type = s.type || 'polygon'; // backwards compatibility
+                    let layer;
+                    if (type === 'line') {
+                        layer = L.polyline(s.latlngs, { color: s.color, weight: 5 }).addTo(map);
+                    } else {
+                        layer = L.polygon(s.latlngs, { color: s.color, stroke: false, fillColor: s.color, fillOpacity: 0.4 }).addTo(map);
+                    }
+                    state.shapes.push({ 
+                        id: s.id || Date.now().toString(), type, name: s.name, color: s.color, 
+                        layer, latlngs: s.latlngs, streets: s.streets || [] 
+                    });
+                });
+
+                // Load dots (or old notes format)
+                const sourceDots = data.dots || data.notes || [];
+                sourceDots.forEach(d => {
+                    const dotId = d.id || Date.now().toString();
+                    const text = d.text || '';
+                    const color = d.color || '#fef08a'; // default old note color
+                    createDotMarker(dotId, text, color, d.latlng);
+                });
+                renderShapes();
+            } catch (err) { console.error("Auto-load failed.", err); }
+        }
+
+        function createDotMarker(id, text, color, latlng) {
+            const dotHtml = `
+                <div class="relative flex items-center group pointer-events-auto mt-[-8px] ml-[-8px]">
+                    <div class="w-4 h-4 rounded-full border-2 border-white shadow-md flex-shrink-0" style="background-color: ${color}"></div>
+                    ${text ? `<div class="ml-1 px-2 py-0.5 bg-white/90 backdrop-blur rounded text-xs font-bold shadow-sm whitespace-nowrap text-gray-800">${text}</div>` : ''}
+                    <button class="absolute -top-2 -right-2 hidden group-hover:flex bg-red-500 text-white rounded-full w-4 h-4 items-center justify-center text-[10px] z-[10]" onclick="window.deleteDot('${id}')" title="Remove Dot"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            `;
+            const icon = L.divIcon({ className: '', html: dotHtml, iconSize: [0, 0], iconAnchor: [0, 0] });
+            const marker = L.marker(latlng, { icon: icon }).addTo(map);
+            state.dots.push({ id, text, color, latlng, marker });
+        }
+
+        window.deleteDot = function(id) {
+            const idx = state.dots.findIndex(d => d.id == id);
+            if (idx > -1) { 
+                map.removeLayer(state.dots[idx].marker); 
+                state.dots.splice(idx, 1); 
+                saveToLocalStorage();
+            }
+        };
 
         // Sidebar / Mobile Logic
         function toggleMobilePanel(forceExpand) {
@@ -354,173 +479,494 @@
         }
         els.mobileHeader.addEventListener('click', () => toggleMobilePanel());
 
-        // Clipboard
-        function copyToClipboard(textStr, successMsg) {
-            const textArea = document.createElement("textarea");
-            textArea.value = textStr;
-            textArea.style.position = "fixed";
-            textArea.style.opacity = "0";
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                updateStatus(successMsg || "Copied to clipboard!");
-            } catch (err) {
-                updateStatus("Failed to copy.");
-            }
-            document.body.removeChild(textArea);
-        }
+        // Centralized Mode Manager
+        function setDrawMode(mode) {
+            if (ssState.active) cancelAreaScreenshot();
+            
+            // Clean up any in-progress drawing (Fix 2)
+            state.markers.forEach(m => map.removeLayer(m));
+            if (state.tempLine) map.removeLayer(state.tempLine);
+            if (state.rubberBand) map.removeLayer(state.rubberBand);
+            state.points = [];
+            state.markers = [];
+            state.tempLine = null;
+            state.rubberBand = null;
 
-        // Drawing Modes
-        function toggleDrawingMode() {
-            if (state.isCommenting) toggleCommentMode();
-            state.isDrawing = !state.isDrawing;
-            if (state.isDrawing) {
+            // Reset UI states
+            els.map.classList.remove('drawing-cursor', 'pin-cursor');
+            els.drawBtn.classList.remove('bg-red-50', 'text-red-600', 'border-red-200');
+            els.drawBtn.querySelector('span').textContent = 'Area';
+            
+            els.drawLineBtn.classList.remove('bg-red-50', 'text-red-600', 'border-red-200');
+            els.drawLineBtn.querySelector('span').textContent = 'Line';
+            
+            els.dotBtn.classList.remove('bg-yellow-50', 'border-yellow-400', 'text-yellow-700');
+            els.finishBtn.classList.replace('flex', 'hidden');
+            els.joystickContainer.style.display = 'none';
+            stopJoystickLoop();
+
+            // Apply new mode
+            state.drawMode = mode;
+            enableMapInteractions();
+
+            if (mode === 'polygon') {
                 els.map.classList.add('drawing-cursor');
                 els.drawBtn.classList.add('bg-red-50', 'text-red-600', 'border-red-200');
-                els.drawBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> <span>Cancel</span>';
-                updateStatus("Click map to start drawing your shape.");
+                els.drawBtn.querySelector('span').textContent = 'Cancel';
                 disableMapInteractions();
+                updateStatus("Click map to draw Area. Right-click drag to pan.");
+                if (window.innerWidth < 768) els.joystickContainer.style.display = 'block';
                 toggleMobilePanel(false);
-            } else {
-                stopDrawing();
-            }
-        }
-
-        function stopDrawing() {
-            state.isDrawing = false;
-            els.map.classList.remove('drawing-cursor');
-            els.finishBtn.classList.replace('flex', 'hidden');
-            els.drawBtn.classList.remove('bg-red-50', 'text-red-600', 'border-red-200');
-            els.drawBtn.innerHTML = '<i class="fa-solid fa-pen-nib"></i> <span>Start Drawing</span>';
-            if (state.rubberBand) map.removeLayer(state.rubberBand);
-            state.rubberBand = null;
-            enableMapInteractions();
-        }
-
-        function toggleCommentMode() {
-            if (state.isDrawing) stopDrawing();
-            state.isCommenting = !state.isCommenting;
-            if (state.isCommenting) {
+            } else if (mode === 'line') {
+                els.map.classList.add('drawing-cursor');
+                els.drawLineBtn.classList.add('bg-red-50', 'text-red-600', 'border-red-200');
+                els.drawLineBtn.querySelector('span').textContent = 'Cancel';
+                disableMapInteractions();
+                updateStatus("Click map to draw Line. Right-click drag to pan.");
+                if (window.innerWidth < 768) els.joystickContainer.style.display = 'block';
+                toggleMobilePanel(false);
+            } else if (mode === 'dot') {
                 els.map.classList.add('pin-cursor');
-                els.commentBtn.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-700');
-                updateStatus("Click on the map to add a note.");
+                els.dotBtn.classList.add('bg-yellow-50', 'border-yellow-400', 'text-yellow-700');
+                updateStatus("Click map to add a colored Dot / Label.");
                 toggleMobilePanel(false);
             } else {
-                els.map.classList.remove('pin-cursor');
-                els.commentBtn.classList.remove('bg-yellow-100', 'border-yellow-400', 'text-yellow-700');
+                updateStatus("Auto-save is active.");
             }
         }
 
-        function addPoint(e) {
-            if (state.isCommenting) {
-                state.pendingNoteLatLng = e.latlng;
-                els.noteModal.classList.remove('hidden');
-                els.noteInput.focus();
+        // Action Buttons Setup
+        els.drawBtn.onclick = () => setDrawMode(state.drawMode === 'polygon' ? 'none' : 'polygon');
+        els.drawLineBtn.onclick = () => setDrawMode(state.drawMode === 'line' ? 'none' : 'line');
+        els.dotBtn.onclick = () => setDrawMode(state.drawMode === 'dot' ? 'none' : 'dot');
+
+        function handleMapClick(e) {
+            if (state.isRightClickDragging || state.joystickActive) return;
+
+            if (ssState.active && ssState.pins.length < 2) {
+                if (ssState.pins.length === 0) {
+                    const m = L.marker(e.latlng).addTo(map);
+                    ssState.pins.push(m);
+                    updateStatus("Click to set the opposite corner of the capture area.");
+                } else if (ssState.pins.length === 1) {
+                    const bounds = L.latLngBounds(ssState.pins[0].getLatLng(), e.latlng);
+                    map.removeLayer(ssState.pins[0]);
+                    ssState.pins = [];
+                    setupFourPins(bounds);
+                }
                 return;
             }
-            if (!state.isDrawing) return;
 
-            const latlng = e.latlng;
-            if (state.points.length >= 3) {
-                const pntCurrent = map.latLngToLayerPoint(latlng);
-                const pntFirst = map.latLngToLayerPoint(state.points[0]);
-                if (pntCurrent.distanceTo(pntFirst) < 30) {
-                    closePolygon();
-                    return;
+            if (state.drawMode === 'dot') {
+                state.pendingDotLatLng = e.latlng;
+                els.dotInput.value = '';
+                els.dotModal.classList.remove('hidden');
+                setTimeout(() => els.dotInput.focus(), 100);
+                return;
+            }
+
+            if (state.drawMode === 'polygon' || state.drawMode === 'line') {
+                const latlng = e.latlng;
+                
+                // Close polygon fast check
+                if (state.drawMode === 'polygon' && state.points.length >= 3) {
+                    const pntCurrent = map.latLngToLayerPoint(latlng);
+                    const pntFirst = map.latLngToLayerPoint(state.points[0]);
+                    if (pntCurrent.distanceTo(pntFirst) < 30) {
+                        finishShape('polygon');
+                        return;
+                    }
+                }
+                
+                state.points.push(latlng);
+                const isFirst = state.points.length === 1;
+                const icon = L.divIcon({
+                    className: isFirst ? 'pulse-icon' : 'bg-white border-2 border-blue-600 rounded-full',
+                    iconSize: isFirst ? [24, 24] : [14, 14],
+                    iconAnchor: isFirst ? [12, 12] : [7, 7]
+                });
+                
+                const marker = L.marker(latlng, { icon: icon, zIndexOffset: 5000 }).addTo(map);
+                if (isFirst && state.drawMode === 'polygon') {
+                    marker.on('click', (ev) => { L.DomEvent.stopPropagation(ev); if (state.points.length >= 3) finishShape('polygon'); });
+                }
+                state.markers.push(marker);
+                updateDrawingLines();
+
+                // Show Finish button
+                if (state.drawMode === 'polygon' && state.points.length >= 3) {
+                    els.finishBtnText.textContent = "Close Area Now";
+                    els.finishBtn.classList.replace('hidden', 'flex');
+                    els.finishBtn.onclick = () => finishShape('polygon');
+                } else if (state.drawMode === 'line' && state.points.length >= 2) {
+                    els.finishBtnText.textContent = "Finish Line Now";
+                    els.finishBtn.classList.replace('hidden', 'flex');
+                    els.finishBtn.onclick = () => finishShape('line');
                 }
             }
-
-            state.points.push(latlng);
-            const isFirst = state.points.length === 1;
-            const icon = L.divIcon({
-                className: isFirst ? 'pulse-icon' : 'bg-white border-2 border-blue-600 rounded-full',
-                iconSize: isFirst ? [24, 24] : [14, 14],
-                iconAnchor: isFirst ? [12, 12] : [7, 7]
-            });
-
-            const marker = L.marker(latlng, { icon: icon, zIndexOffset: 5000 }).addTo(map);
-            if (isFirst) {
-                marker.on('click', (ev) => {
-                    L.DomEvent.stopPropagation(ev);
-                    if (state.points.length >= 3) closePolygon();
-                });
-            }
-            state.markers.push(marker);
-            updateDrawingLines();
-            if (state.points.length >= 3) els.finishBtn.classList.replace('hidden', 'flex');
         }
-
-        // Note Management
-        function saveNote() {
-            const text = els.noteInput.value.trim();
-            if (text && state.pendingNoteLatLng) {
-                const noteIcon = L.divIcon({ className: 'note-marker', html: text, iconSize: null });
-                const marker = L.marker(state.pendingNoteLatLng, { icon: noteIcon }).addTo(map);
-                state.notes.push({ id: Date.now(), text: text, latlng: state.pendingNoteLatLng, marker: marker });
-                marker.on('dblclick', () => {
-                    map.removeLayer(marker);
-                    state.notes = state.notes.filter(n => n.marker !== marker);
-                });
-            }
-            closeNoteModal();
-        }
-
-        function closeNoteModal() {
-            els.noteModal.classList.add('hidden');
-            els.noteInput.value = '';
-            state.pendingNoteLatLng = null;
-            toggleCommentMode(); 
-        }
+        map.on('click', handleMapClick);
 
         function updateDrawingLines() {
             if (state.tempLine) map.removeLayer(state.tempLine);
             if (state.points.length > 1) {
-                state.tempLine = L.polyline(state.points, { color: '#2563eb', weight: 4, interactive: false }).addTo(map);
+                state.tempLine = L.polyline(state.points, { 
+                    color: state.drawMode === 'polygon' ? '#2563eb' : '#f59e0b', 
+                    weight: 4, 
+                    dashArray: state.drawMode === 'line' ? '10, 10' : null,
+                    interactive: false 
+                }).addTo(map);
             }
         }
 
-        function closePolygon() {
-            if (state.points.length < 3) return;
+        map.on('mousemove', (e) => {
+            if ((state.drawMode === 'polygon' || state.drawMode === 'line') && state.points.length > 0) {
+                if (state.rubberBand) map.removeLayer(state.rubberBand);
+                state.rubberBand = L.polyline([state.points[state.points.length - 1], e.latlng], { 
+                    color: state.drawMode === 'polygon' ? '#2563eb' : '#f59e0b', 
+                    weight: 2, 
+                    dashArray: '5, 5', 
+                    opacity: 0.5 
+                }).addTo(map);
+            }
+        });
+
+        function finishShape(type) {
+            if (type === 'polygon' && state.points.length < 3) return;
+            if (type === 'line' && state.points.length < 2) return;
+
             const color = SHAPE_COLORS[state.colorIndex % SHAPE_COLORS.length];
             state.colorIndex++;
-            const newPolygon = L.polygon(state.points, { color: color, fillColor: color, fillOpacity: 0.3, weight: 4 }).addTo(map);
+            
+            let layer;
+            if (type === 'polygon') {
+                layer = L.polygon(state.points, { color, stroke: false, fillColor: color, fillOpacity: 0.4 }).addTo(map);
+            } else {
+                layer = L.polyline(state.points, { color, weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+            }
+            
             const shapeId = Date.now().toString();
-            state.shapes.push({ id: shapeId, name: `Area ${state.shapes.length + 1}`, color: color, polygon: newPolygon, streets: [] });
-            state.markers.forEach(m => map.removeLayer(m));
-            if (state.tempLine) map.removeLayer(state.tempLine);
+            state.shapes.push({ 
+                id: shapeId, 
+                type: type,
+                name: (type === 'polygon' ? 'Area ' : 'Line ') + (state.shapes.length + 1), 
+                color: color, 
+                layer: layer, 
+                latlngs: [...state.points],
+                streets: [] 
+            });
+            
             const finalPoints = [...state.points];
-            state.points = []; state.markers = []; state.tempLine = null;
-            stopDrawing();
-            renderShapes();
-            toggleMobilePanel(true);
-            fetchStreets(finalPoints, shapeId);
+            setDrawMode('none'); 
+            renderShapes(); 
+            saveToLocalStorage(); 
+            toggleMobilePanel(true); 
+            fetchStreets(finalPoints, shapeId, type);
         }
 
-        async function fetchStreets(points, shapeId) {
-            showLoading(true, "Identifying Streets...");
-            const coords = points.map(p => `${p.lat.toFixed(6)} ${p.lng.toFixed(6)}`).join(' ');
-            const polyString = `${coords} ${points[0].lat.toFixed(6)} ${points[0].lng.toFixed(6)}`;
-            const query = `[out:json][timeout:60];(way["highway"]["name"](poly:"${polyString}"););out tags;`;
+        async function fetchStreets(points, shapeId, type) {
+            showLoading(true, "Identifying Streets...", "Querying OpenStreetMap data");
+            
+            let query = '';
+            if (type === 'polygon') {
+                const coords = points.map(p => `${p.lat.toFixed(6)} ${p.lng.toFixed(6)}`).join(' ');
+                const polyString = `${coords} ${points[0].lat.toFixed(6)} ${points[0].lng.toFixed(6)}`;
+                query = `[out:json][timeout:25];(way["highway"]["name"](poly:"${polyString}");way["place"="square"]["name"](poly:"${polyString}");way["place"="street"]["name"](poly:"${polyString}"););out tags;`;
+            } else if (type === 'line') {
+                // Overpass format for multiple points around a radius: (around:radius, lat1,lon1, lat2,lon2...)
+                const coordsList = points.map(p => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`).join(',');
+                query = `[out:json][timeout:25];(way["highway"]["name"](around:15, ${coordsList});way["place"="square"]["name"](around:15, ${coordsList});way["place"="street"]["name"](around:15, ${coordsList}););out tags;`;
+            }
+
             try {
-                const response = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: query });
+                const response = await fetch('https://overpass-api.de/api/interpreter', { 
+                    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(query)
+                });
+                if (!response.ok) throw new Error("API Failure");
                 const data = await response.json();
                 const names = new Set();
                 data.elements.forEach(el => el.tags?.name && names.add(el.tags.name));
                 const shape = state.shapes.find(s => s.id === shapeId);
-                if (shape) {
-                    shape.streets = Array.from(names).sort();
-                    renderShapes();
+                if (shape) { 
+                    shape.streets = Array.from(names).sort(); 
+                    renderShapes(); 
+                    saveToLocalStorage(); 
                 }
-            } catch (e) { updateStatus("Overpass API Error."); } finally { showLoading(false); }
+            } catch (e) { 
+                console.error(e);
+                updateStatus("Overpass API Error. You can manually Add streets."); 
+            } finally { 
+                showLoading(false); 
+            }
         }
 
+        // --- Dot Logic ---
+        els.dotColorPicker.addEventListener('click', (e) => {
+            if (e.target.classList.contains('color-btn')) {
+                // Reset styling for all
+                els.dotColorPicker.querySelectorAll('.color-btn').forEach(btn => btn.classList.replace('ring-offset-2', 'ring-transparent'));
+                // Apply styling to selected
+                e.target.classList.replace('ring-transparent', 'ring-offset-2');
+                state.selectedDotColor = e.target.dataset.color;
+            }
+        });
+
+        els.saveDotBtn.onclick = () => {
+            const text = els.dotInput.value.trim();
+            if (state.pendingDotLatLng) {
+                createDotMarker(Date.now().toString(), text, state.selectedDotColor, state.pendingDotLatLng);
+                saveToLocalStorage();
+            }
+            els.dotModal.classList.add('hidden'); 
+            setDrawMode('none');
+        };
+        els.cancelDotBtn.onclick = () => { els.dotModal.classList.add('hidden'); setDrawMode('none'); }
+
+        // --- Area Screenshot Selection Logic ---
+        function startAreaScreenshot() {
+            setDrawMode('none');
+            ssState.active = true;
+            els.map.classList.add('drawing-cursor');
+            els.screenshotAreaBtn.classList.add('bg-indigo-200', 'text-indigo-800');
+            updateStatus("Click to set the first corner of your exact screenshot area.");
+            toggleMobilePanel(false);
+        }
+
+        function cancelAreaScreenshot() {
+            ssState.active = false;
+            ssState.pins.forEach(p => map.removeLayer(p));
+            if (ssState.rect) map.removeLayer(ssState.rect);
+            if (ssState.ui) map.removeLayer(ssState.ui);
+            ssState.pins = []; ssState.rect = null; ssState.ui = null;
+            
+            els.map.classList.remove('drawing-cursor');
+            els.screenshotAreaBtn.classList.remove('bg-indigo-200', 'text-indigo-800');
+            updateStatus("Auto-save is active.");
+        }
+
+        function setupFourPins(bounds) {
+            const corners = [bounds.getNorthWest(), bounds.getNorthEast(), bounds.getSouthEast(), bounds.getSouthWest()];
+            const pinIcon = L.divIcon({
+                className: 'bg-indigo-600 border-2 border-white rounded-full shadow-lg',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+
+            corners.forEach((latlng, idx) => {
+                const m = L.marker(latlng, { icon: pinIcon, draggable: true, zIndexOffset: 6000 }).addTo(map);
+                m.on('drag', () => handlePinDrag(idx, m.getLatLng()));
+                ssState.pins.push(m);
+            });
+
+            ssState.rect = L.rectangle(bounds, { color: '#4f46e5', weight: 2, fillOpacity: 0.1, dashArray: '5,5', interactive: false }).addTo(map);
+
+            const uiHtml = `
+                <div class="bg-white p-2.5 rounded-xl shadow-[0_5px_20px_rgba(0,0,0,0.3)] flex gap-2 pointer-events-auto border border-gray-200">
+                    <button onclick="captureAreaConfirm()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm"><i class="fa-solid fa-camera mr-1"></i> Capture HD</button>
+                    <button onclick="cancelAreaScreenshot()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-200 transition-colors">Cancel</button>
+                </div>
+            `;
+            const uiIcon = L.divIcon({ className: '', html: uiHtml, iconSize: [220, 50], iconAnchor: [110, 25] });
+            ssState.ui = L.marker(bounds.getCenter(), { icon: uiIcon, zIndexOffset: 7000 }).addTo(map);
+            
+            updateStatus("Drag the 4 corner pins to adjust the exact area, then click Capture HD.");
+        }
+
+        function handlePinDrag(draggedIdx, newLatLng) {
+            const oppIdx = (draggedIdx + 2) % 4; // Opposite corner
+            const oppLatLng = ssState.pins[oppIdx].getLatLng();
+            const bounds = L.latLngBounds(newLatLng, oppLatLng);
+            
+            ssState.pins[0].setLatLng(bounds.getNorthWest());
+            ssState.pins[1].setLatLng(bounds.getNorthEast());
+            ssState.pins[2].setLatLng(bounds.getSouthEast());
+            ssState.pins[3].setLatLng(bounds.getSouthWest());
+            
+            ssState.rect.setBounds(bounds);
+            ssState.ui.setLatLng(bounds.getCenter());
+        }
+
+        window.captureAreaConfirm = async function() {
+            const bounds = ssState.rect.getBounds();
+            cancelAreaScreenshot(); // clear UI pins BEFORE capturing
+            await captureHighRes(bounds);
+        }
+
+        // --- High Resolution Pixel-Perfect Capture ---
+        async function captureHighRes(bounds = null) {
+            showLoading(true, "Capturing Map", "Processing image data...");
+            els.loader.classList.remove('bg-white/90');
+            els.loader.classList.add('bg-white'); 
+            
+            const originalStyle = {
+                width: els.map.style.width, height: els.map.style.height,
+                position: els.map.style.position, zIndex: els.map.style.zIndex,
+                top: els.map.style.top, left: els.map.style.left
+            };
+            const originalCenter = map.getCenter();
+            const originalZoom = map.getZoom();
+
+            let targetWidth = 2560; 
+            let targetHeight = 1440;
+
+            if (bounds) {
+                // Ensure map resizes roughly to ratio for max quality
+                const p1 = map.project(bounds.getNorthWest(), 10);
+                const p2 = map.project(bounds.getSouthEast(), 10);
+                const ratio = Math.abs(p1.x - p2.x) / Math.abs(p1.y - p2.y);
+                targetHeight = Math.round(targetWidth / ratio);
+                if (targetHeight > 4000) { targetHeight = 4000; targetWidth = Math.round(targetHeight * ratio); }
+            }
+
+            document.body.classList.add('is-screenshotting');
+            
+            Object.assign(els.map.style, {
+                position: 'fixed', top: '0', left: '0',
+                width: `${targetWidth}px`, height: `${targetHeight}px`,
+                zIndex: '-10'
+            });
+
+            map.invalidateSize({ animate: false });
+            if (bounds) map.fitBounds(bounds, { animate: false, padding: [0, 0] });
+
+            await new Promise(r => setTimeout(r, 2000));
+
+            try {
+                els.loaderSubText.textContent = "Stitching and cropping...";
+                
+                // Capture the entire scaled map
+                const fullCanvas = await html2canvas(els.map, {
+                    useCORS: true, allowTaint: true, logging: false, scale: 1, backgroundColor: '#f8fafc'
+                });
+                
+                let finalCanvas = fullCanvas;
+
+                if (bounds) {
+                    // EXACT pixel-perfect crop using mapped screen coordinates
+                    const nw = map.latLngToContainerPoint(bounds.getNorthWest());
+                    const se = map.latLngToContainerPoint(bounds.getSouthEast());
+                    
+                    const cropX = Math.max(0, Math.round(Math.min(nw.x, se.x)));
+                    const cropY = Math.max(0, Math.round(Math.min(nw.y, se.y)));
+                    const cropW = Math.round(Math.abs(se.x - nw.x));
+                    const cropH = Math.round(Math.abs(se.y - nw.y));
+
+                    const cropCanvas = document.createElement('canvas');
+                    cropCanvas.width = cropW;
+                    cropCanvas.height = cropH;
+                    const ctx = cropCanvas.getContext('2d');
+                    
+                    // Draw only the perfectly cropped section onto final canvas
+                    ctx.drawImage(fullCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+                    finalCanvas = cropCanvas;
+                }
+                
+                const image = finalCanvas.toDataURL("image/jpeg", 0.95);
+                const link = document.createElement('a');
+                link.href = image;
+                link.download = `Tricon_HD_${bounds ? 'Area' : 'View'}_${Date.now()}.jpg`;
+                link.click();
+                updateStatus("Screenshot saved successfully.");
+            } catch (err) {
+                console.error(err);
+                updateStatus("Failed to take screenshot.");
+            } finally {
+                Object.assign(els.map.style, originalStyle);
+                map.invalidateSize({ animate: false });
+                map.setView(originalCenter, originalZoom, { animate: false });
+                
+                document.body.classList.remove('is-screenshotting');
+                els.loader.classList.remove('bg-white');
+                els.loader.classList.add('bg-white/90');
+                showLoading(false);
+            }
+        }
+
+        els.screenshotViewBtn.onclick = () => { setDrawMode('none'); captureHighRes(null); };
+        els.screenshotAreaBtn.onclick = startAreaScreenshot;
+
+        // Joystick Navigation
+        function startJoystickLoop(vx, vy) {
+            stopJoystickLoop();
+            state.joystickLoop = setInterval(() => {
+                const center = map.getCenter();
+                const factor = 0.00001 * Math.pow(2, 18 - map.getZoom());
+                map.setView([center.lat + vy * factor, center.lng + vx * factor], map.getZoom(), { animate: false });
+            }, 16);
+        }
+
+        function stopJoystickLoop() {
+            if (state.joystickLoop) {
+                clearInterval(state.joystickLoop);
+                state.joystickLoop = null;
+            }
+        }
+
+        els.joystickContainer.addEventListener('touchstart', (e) => { state.joystickActive = true; handleJoystickMove(e); });
+        els.joystickContainer.addEventListener('touchmove', (e) => { if (state.joystickActive) { handleJoystickMove(e); e.preventDefault(); } });
+        els.joystickContainer.addEventListener('touchend', () => {
+            state.joystickActive = false;
+            els.joystickKnob.style.transform = 'translate(-50%, -50%)';
+            stopJoystickLoop();
+        });
+
+        function handleJoystickMove(e) {
+            const touch = e.touches[0];
+            const rect = els.joystickContainer.getBoundingClientRect();
+            let dx = touch.clientX - (rect.left + rect.width / 2);
+            let dy = touch.clientY - (rect.top + rect.height / 2);
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const max = rect.width / 2;
+            if (dist > max) { dx *= max / dist; dy *= max / dist; }
+            els.joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            startJoystickLoop(dx * 0.5, -dy * 0.5);
+        }
+
+        // Advanced Navigation Overrides
+        els.map.addEventListener('mousedown', (e) => {
+            if ((state.drawMode === 'polygon' || state.drawMode === 'line') && e.button === 2) { 
+                state.isRightClickDragging = true;
+                state.lastRightClickPos = { x: e.clientX, y: e.clientY };
+                els.map.style.cursor = 'grabbing';
+            }
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (state.isRightClickDragging) {
+                const dx = e.clientX - state.lastRightClickPos.x;
+                const dy = e.clientY - state.lastRightClickPos.y;
+                map.panBy([-dx, -dy], { animate: false });
+                state.lastRightClickPos = { x: e.clientX, y: e.clientY };
+            }
+        });
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 2) {
+                state.isRightClickDragging = false;
+                if (state.drawMode === 'polygon' || state.drawMode === 'line') els.map.style.cursor = 'crosshair';
+            }
+        });
+        els.map.addEventListener('contextmenu', (e) => { if (state.drawMode !== 'none' || ssState.active) e.preventDefault(); });
+
+        function handleTwoFingerPanStart(e) { if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length >= 2) map.dragging.enable(); }
+        function handleTwoFingerPanEnd(e) { if (e.originalEvent && (!e.originalEvent.touches || e.originalEvent.touches.length < 2)) map.dragging.disable(); }
+
+        function disableMapInteractions() { 
+            map.dragging.disable(); map.doubleClickZoom.disable();
+            map.addHandler('twoFingerPan', L.Handler.TouchExtend);
+            if (map.touchExtend) map.touchExtend.enable();
+            map.on('touchstart', handleTwoFingerPanStart); map.on('touchend', handleTwoFingerPanEnd);
+        }
+
+        function enableMapInteractions() { 
+            map.dragging.enable(); map.touchZoom.enable(); map.doubleClickZoom.enable(); map.scrollWheelZoom.enable();
+            map.off('touchstart', handleTwoFingerPanStart); map.off('touchend', handleTwoFingerPanEnd);
+        }
+
+        // Data Rendering
         function renderShapes() {
             const uniqueStreets = new Set();
             if (state.shapes.length === 0) {
-                els.countBadge.classList.add('hidden');
-                els.copyAllGlobalBtn.classList.add('hidden');
-                els.resultsList.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-gray-400 p-6 text-center"><i class="fa-solid fa-map text-4xl mb-3 opacity-30"></i><p class="text-sm">No area selected.</p></div>`;
+                els.countBadge.classList.add('hidden'); els.copyAllGlobalBtn.classList.add('hidden');
+                els.resultsList.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-gray-400 p-6 text-center"><i class="fa-solid fa-map text-4xl mb-3 opacity-30"></i><p class="text-sm">No map items created yet.</p></div>`;
                 return;
             }
 
@@ -533,11 +979,13 @@
                     </div>
                 `).join('') : '<p class="text-xs text-gray-400 p-2 italic text-center">No streets found.</p>';
 
+                const iconClass = shape.type === 'line' ? 'fa-route' : 'fa-draw-polygon';
+
                 return `
                 <div class="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                     <div class="p-2 border-b flex justify-between items-center bg-gray-50/80">
                         <div class="flex items-center gap-2 flex-1 min-w-0">
-                            <div class="w-3 h-3 rounded-full shrink-0" style="background-color: ${shape.color}"></div>
+                            <i class="fa-solid ${iconClass} text-xs" style="color: ${shape.color}"></i>
                             <input type="text" value="${shape.name}" class="shape-name-input font-bold text-gray-700 bg-transparent w-full text-sm outline-none truncate" data-id="${shape.id}">
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
@@ -552,279 +1000,168 @@
             }).reverse().join('');
 
             els.countBadge.textContent = uniqueStreets.size;
-            els.countBadge.classList.remove('hidden');
-            els.copyAllGlobalBtn.classList.remove('hidden');
+            els.countBadge.classList.remove('hidden'); els.copyAllGlobalBtn.classList.remove('hidden');
         }
 
-        // Manual Street Addition Flow
-        function openStreetAddModal(shapeId) {
-            state.activeShapeIdInView = shapeId;
-            els.streetAddModal.classList.remove('hidden');
-            els.streetNamesInput.value = '';
-            els.streetNamesInput.focus();
-        }
-
-        function closeStreetAddModal() {
-            els.streetAddModal.classList.add('hidden');
-            els.streetNamesInput.value = '';
-        }
-
-        function handleStreetAdd() {
-            const input = els.streetNamesInput.value.trim();
-            if (!input || !state.activeShapeIdInView) {
-                closeStreetAddModal();
-                return;
-            }
-
-            const shape = state.shapes.find(s => s.id === state.activeShapeIdInView);
-            if (!shape) return;
-
-            // Split by comma, trim, filter empty, and merge
-            const newStreets = input.split(',')
-                .map(s => s.trim())
-                .filter(s => s.length > 0);
-
-            const streetSet = new Set([...shape.streets, ...newStreets]);
-            shape.streets = Array.from(streetSet).sort();
-
-            renderShapes();
-            
-            // If the view popup for this shape is also open, refresh it
-            if (!els.viewPopup.classList.contains('hidden')) {
-                refreshViewPopupContent(shape);
-            }
-
-            updateStatus(`${newStreets.length} street(s) added.`);
-            closeStreetAddModal();
-        }
-
-        // Focused View Popup
-        function openViewPopup(shapeId) {
-            const shape = state.shapes.find(s => s.id === shapeId);
-            if (!shape) return;
-            state.activeShapeIdInView = shapeId;
-            els.viewPopupTitle.textContent = shape.name;
-            els.viewPopupColor.style.backgroundColor = shape.color;
-            refreshViewPopupContent(shape);
-            els.viewPopup.classList.remove('hidden');
-        }
-
-        function refreshViewPopupContent(shape) {
-            if (shape.streets.length === 0) {
-                els.viewPopupContent.innerHTML = `<p class="text-center text-gray-400 italic py-10">No streets identified in this area yet.</p>`;
-                els.viewPopupCopyBtn.classList.add('hidden');
-            } else {
-                els.viewPopupContent.innerHTML = `<ul class="space-y-2">
-                    ${shape.streets.map((s, i) => `
-                        <li class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100 group">
-                            <span class="text-xs font-bold text-gray-300">${i + 1}</span>
-                            <span class="text-gray-700 font-medium flex-1">${s}</span>
-                            <button class="remove-street-view-btn w-8 h-8 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100" 
-                                    data-street="${s.replace(/"/g, '&quot;')}" title="Delete street">
-                                <i class="fa-solid fa-trash-can text-sm"></i>
-                            </button>
-                        </li>
-                    `).join('')}
-                </ul>`;
-                els.viewPopupCopyBtn.classList.remove('hidden');
-                els.viewPopupCopyBtn.onclick = () => copyToClipboard(shape.streets.join(', '), "List copied!");
-            }
-        }
-
-        els.viewPopupContent.onclick = (e) => {
-            const deleteBtn = e.target.closest('.remove-street-view-btn');
-            if (deleteBtn && state.activeShapeIdInView) {
-                const streetToRemove = deleteBtn.dataset.street;
-                const shape = state.shapes.find(s => s.id === state.activeShapeIdInView);
+        // Modals Interactivity
+        els.resultsList.onclick = (e) => {
+            const id = e.target.closest('[data-id]')?.dataset.id;
+            if (e.target.closest('.copy-shape-btn')) {
+                const s = state.shapes.find(sh => sh.id === id);
+                if (s?.streets.length) copyToClipboard(s.streets.join(', '));
+            } else if (e.target.closest('.delete-shape-btn')) {
+                const idx = state.shapes.findIndex(sh => sh.id === id);
+                map.removeLayer(state.shapes[idx].layer); state.shapes.splice(idx, 1); renderShapes();
+                saveToLocalStorage();
+            } else if (e.target.closest('.add-street-btn')) {
+                state.activeShapeIdInView = id; els.streetNamesInput.value = ''; els.streetAddModal.classList.remove('hidden');
+            } else if (e.target.closest('.view-shape-btn')) {
+                state.activeShapeIdInView = id;
+                const shape = state.shapes.find(s => s.id === id);
                 if (shape) {
-                    shape.streets = shape.streets.filter(s => s !== streetToRemove);
-                    refreshViewPopupContent(shape);
-                    renderShapes();
+                    els.viewPopupTitle.textContent = shape.name; els.viewPopupColor.style.backgroundColor = shape.color;
+                    renderViewPopupStreets(shape); els.viewPopup.classList.remove('hidden');
+                }
+            } else if (e.target.closest('.remove-street-btn')) {
+                const btn = e.target.closest('.remove-street-btn');
+                const shape = state.shapes.find(s => s.id === btn.dataset.shapeId);
+                if (shape) { 
+                    shape.streets = shape.streets.filter(s => s !== btn.dataset.street); 
+                    renderShapes(); 
+                    saveToLocalStorage();
                 }
             }
         };
 
-        els.viewPopupAddBtn.onclick = () => {
-            if (state.activeShapeIdInView) openStreetAddModal(state.activeShapeIdInView);
+        els.resultsList.addEventListener('input', (e) => {
+            if (e.target.classList.contains('shape-name-input')) {
+                const shape = state.shapes.find(s => s.id === e.target.dataset.id);
+                if (shape) { shape.name = e.target.value; saveToLocalStorage(); }
+            }
+        });
+
+        els.confirmStreetBtn.onclick = () => {
+            const shape = state.shapes.find(s => s.id === state.activeShapeIdInView);
+            if (shape) {
+                const newStreets = els.streetNamesInput.value.split(',').map(s => s.trim()).filter(s => s);
+                shape.streets = Array.from(new Set([...shape.streets, ...newStreets])).sort();
+                renderShapes(); saveToLocalStorage();
+                if (!els.viewPopup.classList.contains('hidden')) renderViewPopupStreets(shape);
+            }
+            els.streetAddModal.classList.add('hidden');
+        };
+        els.cancelStreetBtn.onclick = () => els.streetAddModal.classList.add('hidden');
+
+        els.closeViewPopup.onclick = () => els.viewPopup.classList.add('hidden');
+        els.viewPopupAddBtn.onclick = () => { els.streetNamesInput.value = ''; els.streetAddModal.classList.remove('hidden'); };
+        els.viewPopupCopyBtn.onclick = () => {
+            const shape = state.shapes.find(s => s.id === state.activeShapeIdInView);
+            if (shape && shape.streets.length > 0) copyToClipboard(shape.streets.join(', '));
+        };
+        
+        function renderViewPopupStreets(shape) {
+            els.viewPopupContent.innerHTML = shape.streets.length ? shape.streets.map(s => `
+                <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 flex justify-between items-center mb-2 group">
+                    <span class="font-medium text-gray-700">${s}</span>
+                    <button class="remove-street-btn text-gray-400 hover:text-red-500 transition-opacity p-2 bg-white rounded-md shadow-sm border border-gray-100" data-shape-id="${shape.id}" data-street="${s.replace(/"/g, '&quot;')}"><i class="fa-solid fa-trash text-xs"></i></button>
+                </div>
+            `).join('') : '<p class="text-gray-400 p-4 italic text-center">No streets found.</p>';
+        }
+        els.viewPopupContent.onclick = (e) => {
+            const btn = e.target.closest('.remove-street-btn');
+            if (btn) {
+                const shape = state.shapes.find(s => s.id === btn.dataset.shapeId);
+                if (shape) {
+                    shape.streets = shape.streets.filter(s => s !== btn.dataset.street);
+                    renderShapes(); renderViewPopupStreets(shape); saveToLocalStorage();
+                }
+            }
         };
 
-        els.closeViewPopup.onclick = () => { els.viewPopup.classList.add('hidden'); state.activeShapeIdInView = null; };
-        els.viewPopup.onclick = (e) => { if (e.target === els.viewPopup) { els.viewPopup.classList.add('hidden'); state.activeShapeIdInView = null; } };
-
-        // Screenshot logic
-        async function takeScreenshot() {
-            showLoading(true, "Capturing map...");
-            updateStatus("Generating image...");
-            await new Promise(r => setTimeout(r, 500));
-            document.body.classList.add('is-screenshotting');
-            try {
-                const canvas = await html2canvas(document.body, {
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#ffffff',
-                    scale: 2,
-                    logging: false
-                });
-                const link = document.createElement('a');
-                link.download = `Tricon_Scanner_${new Date().toISOString().slice(0,10)}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-                updateStatus("Screenshot saved!");
-            } catch (err) {
-                updateStatus("Screenshot failed.");
-            } finally {
-                document.body.classList.remove('is-screenshotting');
-                showLoading(false);
-            }
+        // Helpers
+        function copyToClipboard(textStr, successMsg) {
+            const textArea = document.createElement("textarea");
+            textArea.value = textStr; textArea.style.position = "fixed"; textArea.style.opacity = "0";
+            document.body.appendChild(textArea); textArea.select();
+            try { document.execCommand('copy'); updateStatus(successMsg || "Copied to clipboard!"); } 
+            catch (err) { updateStatus("Failed to copy."); }
+            document.body.removeChild(textArea);
         }
 
-        // Export/Import JSON Data
-        function exportData() {
+        els.copyAllGlobalBtn.onclick = () => {
+            const allStreets = new Set();
+            state.shapes.forEach(shape => shape.streets.forEach(s => allStreets.add(s)));
+            if (allStreets.size > 0) copyToClipboard(Array.from(allStreets).sort().join(', '), "All streets copied!");
+        };
+
+        function updateStatus(msg) { els.statusText.innerHTML = msg; }
+        function showLoading(show, title = "Loading...", subtitle = "") { 
+            els.loader.classList.toggle('hidden', !show); 
+            els.loaderText.textContent = title; els.loaderSubText.textContent = subtitle;
+        }
+
+        function clearMap(prompt = true) {
+            if(prompt && state.shapes.length === 0 && state.dots.length === 0) return;
+            setDrawMode('none');
+            state.shapes.forEach(s => map.removeLayer(s.layer)); state.dots.forEach(d => map.removeLayer(d.marker));
+            state.shapes = []; state.dots = []; state.colorIndex = 0;
+            renderShapes(); updateStatus("Map cleared."); saveToLocalStorage();
+        }
+        els.resetBtn.onclick = () => clearMap(true);
+
+        // Export/Import Data
+        els.exportBtn.onclick = () => {
             const data = {
-                shapes: state.shapes.map(s => ({ name: s.name, color: s.color, streets: s.streets, latlngs: s.polygon.getLatLngs() })),
-                notes: state.notes.map(n => ({ text: n.text, latlng: n.latlng }))
+                shapes: state.shapes.map(s => ({ type: s.type, name: s.name, color: s.color, streets: s.streets, latlngs: s.latlngs })),
+                dots: state.dots.map(d => ({ text: d.text, color: d.color, latlng: d.latlng }))
             };
             const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `Tricon_Data_${new Date().toISOString().slice(0,10)}.json`;
-            link.click();
-        }
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
+            link.download = `Tricon_Data_${new Date().toISOString().slice(0,10)}.json`; link.click();
+        };
 
         els.importFile.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+            const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
                 try {
-                    const data = JSON.parse(event.target.result);
-                    clearMap();
+                    const data = JSON.parse(event.target.result); clearMap(false);
                     data.shapes?.forEach(s => {
-                        const poly = L.polygon(s.latlngs, { color: s.color, fillColor: s.color, fillOpacity: 0.3, weight: 4 }).addTo(map);
-                        state.shapes.push({ id: Date.now().toString() + Math.random(), name: s.name, color: s.color, polygon: poly, streets: s.streets });
+                        const type = s.type || 'polygon';
+                        let layer;
+                        if (type === 'line') layer = L.polyline(s.latlngs, { color: s.color, weight: 6, opacity: 0.8 }).addTo(map);
+                        else layer = L.polygon(s.latlngs, { color: s.color, stroke: false, fillColor: s.color, fillOpacity: 0.4 }).addTo(map);
+                        state.shapes.push({ id: Date.now().toString() + Math.random(), type, name: s.name, color: s.color, layer: layer, streets: s.streets, latlngs: s.latlngs });
                     });
-                    data.notes?.forEach(n => {
-                        const icon = L.divIcon({ className: 'note-marker', html: n.text, iconSize: null });
-                        const marker = L.marker(n.latlng, { icon: icon }).addTo(map);
-                        state.notes.push({ id: Date.now() + Math.random(), text: n.text, latlng: n.latlng, marker: marker });
-                    });
-                    renderShapes();
-                    updateStatus("Data imported.");
+                    const dots = data.dots || data.notes || [];
+                    dots.forEach(d => createDotMarker(Date.now() + Math.random().toString(), d.text || '', d.color || '#fef08a', d.latlng));
+                    renderShapes(); updateStatus("Data imported."); saveToLocalStorage();
                 } catch (err) { updateStatus("Import failed."); }
             };
             reader.readAsText(file);
         };
 
-        function clearMap() {
-            state.shapes.forEach(s => map.removeLayer(s.polygon));
-            state.notes.forEach(n => map.removeLayer(n.marker));
-            state.shapes = []; state.notes = []; state.markers = []; state.colorIndex = 0;
-            renderShapes();
-            updateStatus("Map cleared.");
-        }
-
-        function updateStatus(msg) { els.statusText.innerHTML = msg; }
-        function showLoading(show, text = "Loading...") { 
-            els.loader.classList.toggle('hidden', !show); 
-            els.loaderText.textContent = text;
-        }
-        function disableMapInteractions() { map.dragging.disable(); map.scrollWheelZoom.disable(); }
-        function enableMapInteractions() { map.dragging.enable(); map.scrollWheelZoom.enable(); }
-
         // Login Logic
         const passcodeInput = document.getElementById('passcodeInput');
-        const togglePasscodeBtn = document.getElementById('togglePasscodeBtn');
-        const togglePasscodeIcon = document.getElementById('togglePasscodeIcon');
-
-        // Toggle Passcode Visibility
-        togglePasscodeBtn.addEventListener('click', () => {
-            if (passcodeInput.type === 'password') {
-                passcodeInput.type = 'text';
-                togglePasscodeIcon.classList.remove('fa-eye');
-                togglePasscodeIcon.classList.add('fa-eye-slash');
-            } else {
-                passcodeInput.type = 'password';
-                togglePasscodeIcon.classList.remove('fa-eye-slash');
-                togglePasscodeIcon.classList.add('fa-eye');
-            }
+        document.getElementById('togglePasscodeBtn').addEventListener('click', () => {
+            const icon = document.getElementById('togglePasscodeIcon');
+            if (passcodeInput.type === 'password') { passcodeInput.type = 'text'; icon.classList.replace('fa-eye', 'fa-eye-slash'); } 
+            else { passcodeInput.type = 'password'; icon.classList.replace('fa-eye-slash', 'fa-eye'); }
             passcodeInput.focus();
         });
 
         function handleLogin() {
-            if (passcodeInput.value === 'mddmms') {
-                document.getElementById('loginOverlay').classList.add('hidden');
-            } else {
-                document.getElementById('loginError').style.opacity = '1';
-                passcodeInput.value = '';
-                // reset to password view if it was visible
-                passcodeInput.type = 'password';
-                togglePasscodeIcon.classList.remove('fa-eye-slash');
-                togglePasscodeIcon.classList.add('fa-eye');
-
+            if (passcodeInput.value === 'mddmms') { document.getElementById('loginOverlay').classList.add('hidden'); } 
+            else {
+                document.getElementById('loginError').style.opacity = '1'; passcodeInput.value = '';
                 setTimeout(() => document.getElementById('loginError').style.opacity = '0', 2000);
             }
         }
         document.getElementById('loginBtn').onclick = handleLogin;
         passcodeInput.onkeypress = (e) => { if (e.key === 'Enter') handleLogin(); };
 
-        // Global Listeners
-        els.drawBtn.onclick = toggleDrawingMode;
-        els.resetBtn.onclick = clearMap;
-        els.finishBtn.onclick = closePolygon;
-        els.commentBtn.onclick = toggleCommentMode;
-        els.saveNoteBtn.onclick = saveNote;
-        els.cancelNoteBtn.onclick = closeNoteModal;
-        els.exportBtn.onclick = exportData;
-        els.screenshotBtn.onclick = takeScreenshot;
-        
-        els.confirmStreetBtn.onclick = handleStreetAdd;
-        els.cancelStreetBtn.onclick = closeStreetAddModal;
-
-        els.copyAllGlobalBtn.onclick = () => {
-            const all = new Set();
-            state.shapes.forEach(s => s.streets.forEach(st => all.add(st)));
-            if (all.size) copyToClipboard(Array.from(all).sort().join(', '), "All unique streets copied!");
-        };
-
-        map.on('click', addPoint);
-        map.on('mousemove', (e) => {
-            if (state.isDrawing && state.points.length > 0) {
-                if (state.rubberBand) map.removeLayer(state.rubberBand);
-                state.rubberBand = L.polyline([state.points[state.points.length - 1], e.latlng], {
-                    color: '#2563eb', weight: 2, dashArray: '5, 5', opacity: 0.5
-                }).addTo(map);
-            }
-        });
-
-        els.resultsList.onclick = (e) => {
-            const id = e.target.closest('[data-id]')?.dataset.id;
-            if (e.target.closest('.add-street-btn')) {
-                openStreetAddModal(id);
-            } else if (e.target.closest('.view-shape-btn')) {
-                openViewPopup(id);
-            } else if (e.target.closest('.copy-shape-btn')) {
-                const s = state.shapes.find(sh => sh.id === id);
-                if (s?.streets.length) copyToClipboard(s.streets.join(', '));
-            } else if (e.target.closest('.delete-shape-btn')) {
-                const idx = state.shapes.findIndex(sh => sh.id === id);
-                map.removeLayer(state.shapes[idx].polygon);
-                state.shapes.splice(idx, 1);
-                renderShapes();
-            } else if (e.target.closest('.remove-street-btn')) {
-                const btn = e.target.closest('.remove-street-btn');
-                const shape = state.shapes.find(s => s.id === btn.dataset.shapeId);
-                shape.streets = shape.streets.filter(s => s !== btn.dataset.street);
-                renderShapes();
-            }
-        };
-
-        els.resultsList.oninput = (e) => {
-            if (e.target.classList.contains('shape-name-input')) {
-                const shape = state.shapes.find(s => s.id === e.target.dataset.id);
-                if (shape) shape.name = e.target.value;
-            }
-        };
-
+        // Initialize state on load
+        loadFromLocalStorage();
         window.onload = () => passcodeInput.focus();
     </script>
 </body>
