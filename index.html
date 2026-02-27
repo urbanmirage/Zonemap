@@ -20,19 +20,28 @@
         .drawing-cursor { cursor: crosshair !important; }
         .pin-cursor { cursor: cell !important; }
 
-        .pulse-icon {
-            background: #ef4444;
-            border: 3px solid white;
+        .vertex-marker {
+            background-color: white;
+            border: 3px solid #f97316;
             border-radius: 50%;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
-            animation: pulse-red 1.5s infinite;
-            cursor: pointer !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            cursor: move !important;
         }
 
-        @keyframes pulse-red {
-            0 { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { transform: scale(1.3); box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        /* Shape Popup Custom Styling */
+        .shape-popup .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            border: 1px solid #f1f5f9;
+            padding: 0;
+        }
+        .shape-popup .leaflet-popup-content {
+            margin: 12px;
+        }
+        .shape-popup a.leaflet-popup-close-button {
+            color: #94a3b8;
+            padding: 4px;
+            font-weight: bold;
         }
 
         /* Joystick Styles */
@@ -104,7 +113,8 @@
 </head>
 <body class="flex flex-col md:flex-row h-screen bg-gray-100 font-sans relative overflow-hidden">
 
-    <div id="loginOverlay" class="fixed inset-0 bg-black z-[99999] flex flex-col items-center justify-center text-white transition-opacity duration-500">
+    <!-- Fixed full screen positioning specifically adapted for Ubuntu compatibility -->
+    <div id="loginOverlay" class="fixed top-0 left-0 w-full h-full bg-black z-[999999] overflow-hidden flex flex-col items-center justify-center text-white transition-opacity duration-500" style="min-height: 100vh;">
         <h1 class="text-6xl md:text-8xl font-black tracking-widest mb-10 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">TRICON</h1>
         <div class="flex flex-col sm:flex-row gap-3 w-full max-w-sm px-6">
             <div class="relative flex-1">
@@ -153,7 +163,6 @@
         </div>
 
         <div class="p-3 border-b border-gray-100 bg-gray-50 flex flex-col gap-2 shrink-0">
-            <!-- Drawing Tools -->
             <div class="flex gap-1.5">
                 <button id="drawBtn" class="flex-1 bg-white border border-gray-300 text-gray-700 px-2 py-2 rounded-lg text-xs font-bold hover:bg-blue-50 transition-all flex flex-col items-center justify-center gap-1 shadow-sm">
                     <i class="fa-solid fa-draw-polygon text-base"></i> <span id="drawBtnText">Area</span>
@@ -169,7 +178,6 @@
                 </button>
             </div>
             
-            <!-- Screenshot Tools -->
             <div class="flex gap-1.5">
                 <button id="screenshotAreaBtn" class="flex-1 bg-indigo-600 text-white px-2 py-1.5 rounded-lg text-[11px] font-bold hover:bg-indigo-700 transition-all shadow-sm flex items-center justify-center gap-1">
                     <i class="fa-solid fa-crop-simple"></i> HD Area
@@ -179,15 +187,21 @@
                 </button>
             </div>
 
-            <!-- Save / Load -->
+            <!-- Enhanced Data Menu with Merge functionality -->
             <div class="flex gap-1.5">
-                <button id="exportBtn" class="flex-1 bg-white border border-gray-300 text-gray-600 px-2 py-1.5 rounded-lg text-[11px] font-medium hover:bg-gray-100 transition-all shadow-sm flex items-center justify-center gap-1">
-                    <i class="fa-solid fa-file-export"></i> Save Data
+                <button id="exportBtn" class="flex-1 bg-white border border-gray-300 text-gray-600 px-2 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-medium hover:bg-gray-100 transition-all shadow-sm flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-file-export"></i> Save
                 </button>
                 <div class="flex-1 relative cursor-pointer group">
-                    <input type="file" id="importFile" accept=".json" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Open Save">
-                    <button class="w-full h-full bg-white border border-gray-300 text-gray-600 px-2 py-1.5 rounded-lg text-[11px] font-medium group-hover:bg-gray-100 transition-all shadow-sm flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-file-import"></i> Open Data
+                    <input type="file" id="importFile" accept=".json" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Open Data (Overwrite)">
+                    <button class="w-full h-full bg-white border border-gray-300 text-gray-600 px-2 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-medium group-hover:bg-gray-100 transition-all shadow-sm flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-folder-open"></i> Open
+                    </button>
+                </div>
+                <div class="flex-1 relative cursor-pointer group">
+                    <input type="file" id="mergeFile" accept=".json" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Merge Data (Combine)">
+                    <button class="w-full h-full bg-blue-50 border border-blue-200 text-blue-700 px-2 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold group-hover:bg-blue-100 transition-all shadow-sm flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-code-merge"></i> Merge
                     </button>
                 </div>
             </div>
@@ -233,37 +247,48 @@
     </div>
 
     <!-- Modals -->
-    <div id="dotModal" class="hidden fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
-            <h3 class="text-lg font-bold text-gray-800 mb-4">Add Dot Settings</h3>
+    <div id="shapeModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[10001] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-gray-100">
+            <h3 class="text-xl font-black text-gray-800 mb-4 tracking-tight" id="shapeModalTitle">Name Area</h3>
             
-            <label class="block text-xs font-bold text-gray-600 mb-2">Dot Color</label>
-            <div class="flex gap-3 mb-5" id="dotColorPicker">
-                <button class="color-btn w-6 h-6 rounded-full ring-2 ring-offset-2 ring-red-500 bg-red-500 transition-all" data-color="#ef4444"></button>
-                <button class="color-btn w-6 h-6 rounded-full ring-2 ring-offset-2 ring-transparent bg-blue-500 transition-all" data-color="#3b82f6"></button>
-                <button class="color-btn w-6 h-6 rounded-full ring-2 ring-offset-2 ring-transparent bg-green-500 transition-all" data-color="#10b981"></button>
-                <button class="color-btn w-6 h-6 rounded-full ring-2 ring-offset-2 ring-transparent bg-yellow-400 transition-all" data-color="#facc15"></button>
-                <button class="color-btn w-6 h-6 rounded-full ring-2 ring-offset-2 ring-transparent bg-purple-500 transition-all" data-color="#a855f7"></button>
-            </div>
-
-            <label class="block text-xs font-bold text-gray-600 mb-2">Label Text (Optional)</label>
-            <input type="text" id="dotInput" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none mb-5" placeholder="Enter text label...">
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Name Label</label>
+            <input type="text" id="shapeNameInput" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none mb-6 font-medium text-gray-800 transition-all" placeholder="e.g. Zone A, Main Route...">
             
-            <div class="flex gap-2">
-                <button id="cancelDotBtn" class="flex-1 bg-gray-100 text-gray-600 font-bold py-2 rounded-lg hover:bg-gray-200">Cancel</button>
-                <button id="saveDotBtn" class="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700">Add Dot</button>
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Color Label</label>
+            <div class="grid grid-cols-5 gap-2.5 mb-8" id="shapeColorPicker"></div>
+            
+            <div class="flex gap-3">
+                <button id="cancelShapeBtn" class="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors">Discard</button>
+                <button id="saveShapeBtn" class="flex-[2] bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 shadow-[0_4px_15px_rgba(37,99,235,0.3)] transition-all">Save & Scan</button>
             </div>
         </div>
     </div>
 
-    <div id="streetAddModal" class="hidden fixed inset-0 bg-black/50 z-[10001] flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
-            <h3 class="text-lg font-bold text-gray-800 mb-2">Add Streets Manually</h3>
+    <div id="dotModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[10001] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-gray-100">
+            <h3 class="text-xl font-black text-gray-800 mb-4 tracking-tight" id="dotModalTitle">Dot Settings</h3>
+            
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Label Text (Optional)</label>
+            <input type="text" id="dotInput" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none mb-6 font-medium text-gray-800 transition-all" placeholder="Enter text label...">
+            
+            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Dot Color (30 Options)</label>
+            <div class="grid grid-cols-6 gap-2 mb-8 max-h-[160px] overflow-y-auto scroller p-1" id="dotColorPicker"></div>
+            
+            <div class="flex gap-3">
+                <button id="cancelDotBtn" class="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
+                <button id="saveDotBtn" class="flex-[2] bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 shadow-[0_4px_15px_rgba(37,99,235,0.3)] transition-all">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="streetAddModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[10001] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-black text-gray-800 mb-2">Add Streets Manually</h3>
             <p class="text-xs text-gray-500 mb-4">You can add multiple streets separated by commas.</p>
-            <textarea id="streetNamesInput" rows="3" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none mb-4 text-sm" placeholder="Street Name 1, Street Name 2..."></textarea>
-            <div class="flex gap-2">
-                <button id="cancelStreetBtn" class="flex-1 bg-gray-100 text-gray-600 font-bold py-2 rounded-lg hover:bg-gray-200">Cancel</button>
-                <button id="confirmStreetBtn" class="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700">Add to List</button>
+            <textarea id="streetNamesInput" rows="3" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none mb-6 text-sm font-medium transition-all" placeholder="Street Name 1, Street Name 2..."></textarea>
+            <div class="flex gap-3">
+                <button id="cancelStreetBtn" class="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
+                <button id="confirmStreetBtn" class="flex-[2] bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 shadow-[0_4px_15px_rgba(37,99,235,0.3)] transition-all">Add to List</button>
             </div>
         </div>
     </div>
@@ -304,34 +329,36 @@
             attribution: '&copy; OpenStreetMap'
         };
 
-        const SHAPE_COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#14b8a6', '#f43f5e'];
+        const COLORS_30 = [
+            '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+            '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#dc2626', '#ea580c', '#d97706',
+            '#ca8a04', '#65a30d', '#16a34a', '#059669', '#0d9488', '#0891b2', '#0284c7', '#2563eb', '#4f46e5', '#7c3aed'
+        ];
+        const COLORS_20 = COLORS_30.slice(0, 20);
 
         const state = {
             activeShapeIdInView: null,
-            drawMode: 'none', // 'none', 'polygon', 'line', 'dot'
+            drawMode: 'none',
+            pendingDotId: null,
             pendingDotLatLng: null,
             selectedDotColor: '#ef4444',
+            pendingShape: null, 
+            selectedShapeColor: COLORS_20[0],
             points: [],
             markers: [],
             tempLine: null,
             rubberBand: null,
-            shapes: [], // Stores both polygons and lines {id, type, name, color, layer, streets, latlngs}
+            shapes: [], 
             dots: [],
-            colorIndex: 0,
-            
-            // Interaction state
+            editingShapeId: null,
+            editMarkers: [],
             isRightClickDragging: false,
             lastRightClickPos: null,
             joystickActive: false,
             joystickLoop: null
         };
 
-        const ssState = {
-            active: false,
-            pins: [], 
-            rect: null,
-            ui: null
-        };
+        const ssState = { active: false, pins: [], rect: null, ui: null };
 
         const els = {
             map: document.getElementById('map'),
@@ -343,6 +370,7 @@
             resetBtn: document.getElementById('resetBtn'),
             exportBtn: document.getElementById('exportBtn'),
             importFile: document.getElementById('importFile'),
+            mergeFile: document.getElementById('mergeFile'), // New Merge File Input
             screenshotViewBtn: document.getElementById('screenshotViewBtn'),
             screenshotAreaBtn: document.getElementById('screenshotAreaBtn'),
             statusText: document.getElementById('statusText'),
@@ -353,10 +381,17 @@
             countBadge: document.getElementById('countBadge'),
             copyAllGlobalBtn: document.getElementById('copyAllGlobalBtn'),
             dotModal: document.getElementById('dotModal'),
+            dotModalTitle: document.getElementById('dotModalTitle'),
             dotInput: document.getElementById('dotInput'),
             saveDotBtn: document.getElementById('saveDotBtn'),
             cancelDotBtn: document.getElementById('cancelDotBtn'),
             dotColorPicker: document.getElementById('dotColorPicker'),
+            shapeModal: document.getElementById('shapeModal'),
+            shapeModalTitle: document.getElementById('shapeModalTitle'),
+            shapeNameInput: document.getElementById('shapeNameInput'),
+            shapeColorPicker: document.getElementById('shapeColorPicker'),
+            saveShapeBtn: document.getElementById('saveShapeBtn'),
+            cancelShapeBtn: document.getElementById('cancelShapeBtn'),
             sidebar: document.getElementById('sidebar'),
             mobileHeader: document.getElementById('mobileHeader'),
             mobileToggleText: document.getElementById('mobileToggleText'),
@@ -378,32 +413,119 @@
             zoomOutBtn: document.getElementById('zoomOutBtn')
         };
 
-        // Initialize Map
         const map = L.map('map', { 
-            doubleClickZoom: false,
-            zoomControl: false, 
-            preferCanvas: true,
-            zoomSnap: 0,
-            tap: false 
+            doubleClickZoom: false, zoomControl: false, preferCanvas: true, zoomSnap: 0, tap: false 
         }).setView([CONFIG.defaultLat, CONFIG.defaultLng], CONFIG.defaultZoom);
 
-        L.tileLayer(CONFIG.tileUrl, { 
-            attribution: CONFIG.attribution, 
-            maxZoom: 20,
-            crossOrigin: 'anonymous' 
-        }).addTo(map);
+        L.tileLayer(CONFIG.tileUrl, { attribution: CONFIG.attribution, maxZoom: 20, crossOrigin: 'anonymous' }).addTo(map);
 
-        // Custom Zoom Listeners
         L.DomEvent.disableClickPropagation(els.customZoomControl);
         L.DomEvent.disableScrollPropagation(els.customZoomControl);
         els.zoomInBtn.addEventListener('click', (e) => { e.preventDefault(); map.flyTo(map.getCenter(), map.getZoom() + 1, { animate: true, duration: 0.8 }); });
         els.zoomOutBtn.addEventListener('click', (e) => { e.preventDefault(); map.flyTo(map.getCenter(), map.getZoom() - 1, { animate: true, duration: 0.8 }); });
 
-        // Auto-Save Management
+        function bindShapePopup(shape) {
+            const popupContent = `
+                <div class="text-center p-1 min-w-[140px]">
+                    <div class="font-black text-sm text-gray-800 mb-3 border-b pb-2" style="border-color: ${shape.color}40">${shape.name}</div>
+                    <div class="flex flex-col gap-2">
+                        <button onclick="window.viewShapeStreets('${shape.id}')" class="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors w-full flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-list"></i> View Streets</button>
+                        <button onclick="window.toggleEditShape('${shape.id}'); map.closePopup();" class="bg-orange-50 text-orange-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-100 transition-colors w-full flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-pen"></i> Edit Shape</button>
+                    </div>
+                </div>
+            `;
+            shape.layer.bindPopup(popupContent, { className: 'shape-popup', closeButton: true });
+        }
+
+        window.viewShapeStreets = function(id) {
+            state.activeShapeIdInView = id;
+            const shape = state.shapes.find(s => s.id === id);
+            if (shape) {
+                els.viewPopupTitle.textContent = shape.name;
+                els.viewPopupColor.style.backgroundColor = shape.color;
+                renderViewPopupStreets(shape);
+                els.viewPopup.classList.remove('hidden');
+                map.closePopup(); 
+            }
+        };
+
+        // Center map on shape and blink highlights
+        window.focusAndBlinkShape = function(id) {
+            const shape = state.shapes.find(s => s.id === id);
+            if (!shape || !shape.layer) return;
+
+            // Pan to the shape bounds smoothly
+            if (shape.layer.getBounds) {
+                map.flyToBounds(shape.layer.getBounds(), { padding: [50, 50], duration: 0.6 });
+            } else if (shape.layer.getLatLng) {
+                map.flyTo(shape.layer.getLatLng(), map.getZoom(), { duration: 0.6 });
+            }
+
+            // Open Popup automatically
+            shape.layer.openPopup();
+
+            // Blink effect (toggle between white and original color)
+            const origColor = shape.color;
+            const blinkColor = '#ffffff';
+            let step = 0;
+
+            const blinkInterval = setInterval(() => {
+                step++;
+                const useWhite = step % 2 !== 0; 
+                
+                if (shape.type === 'polygon') {
+                    shape.layer.setStyle({ fillColor: useWhite ? blinkColor : origColor, fillOpacity: useWhite ? 0.9 : 0.4 });
+                } else {
+                    shape.layer.setStyle({ color: useWhite ? blinkColor : origColor, opacity: useWhite ? 1 : 0.8 });
+                }
+
+                if (step >= 4) { // Complete 2 flashes
+                    clearInterval(blinkInterval);
+                    if (shape.type === 'polygon') {
+                        shape.layer.setStyle({ fillColor: origColor, fillOpacity: 0.4 });
+                    } else {
+                        shape.layer.setStyle({ color: origColor, opacity: 0.8 });
+                    }
+                }
+            }, 200);
+        };
+
+        function buildColorPicker(container, colors, isShape) {
+            container.innerHTML = colors.map(c => 
+                `<button class="color-btn w-full aspect-square rounded-full ring-2 ring-offset-2 ring-transparent transition-all shadow-sm" style="background-color: ${c}" data-color="${c}"></button>`
+            ).join('');
+            
+            container.addEventListener('click', (e) => {
+                if (e.target.classList.contains('color-btn')) {
+                    container.querySelectorAll('.color-btn').forEach(btn => btn.classList.replace('ring-offset-2', 'ring-transparent'));
+                    e.target.classList.replace('ring-transparent', 'ring-offset-2');
+                    e.target.style.ringColor = e.target.dataset.color;
+                    e.target.style.boxShadow = `0 0 0 2px white, 0 0 0 4px ${e.target.dataset.color}`;
+                    
+                    if (isShape) state.selectedShapeColor = e.target.dataset.color;
+                    else state.selectedDotColor = e.target.dataset.color;
+                }
+            });
+        }
+        buildColorPicker(els.dotColorPicker, COLORS_30, false);
+        buildColorPicker(els.shapeColorPicker, COLORS_20, true);
+
+        function setMapElementsInteractive(interactive) {
+            state.shapes.forEach(shape => {
+                if (shape.layer && shape.layer.setStyle) { shape.layer.setStyle({ interactive: interactive }); }
+            });
+            state.dots.forEach(dot => {
+                if (dot.marker && dot.marker._icon) {
+                    dot.marker._icon.style.pointerEvents = interactive ? 'auto' : 'none';
+                    dot.marker.options.interactive = interactive;
+                }
+            });
+        }
+
         function saveToLocalStorage() {
             const data = {
                 shapes: state.shapes.map(s => ({ id: s.id, type: s.type, name: s.name, color: s.color, streets: s.streets, latlngs: s.latlngs })),
-                dots: state.dots.map(d => ({ id: d.id, text: d.text, color: d.color, latlng: d.latlng }))
+                dots: state.dots.map(d => ({ id: d.id, text: d.text, color: d.color, latlng: d.latlng, isMoving: d.isMoving }))
             };
             localStorage.setItem('tricon_autosave', JSON.stringify(data));
         }
@@ -413,555 +535,356 @@
             if (!saved) return;
             try {
                 const data = JSON.parse(saved);
-                clearMap(false); // clear without saving
+                clearMap(false);
 
                 data.shapes?.forEach(s => {
-                    const type = s.type || 'polygon'; // backwards compatibility
+                    const type = s.type || 'polygon';
                     let layer;
-                    if (type === 'line') {
-                        layer = L.polyline(s.latlngs, { color: s.color, weight: 5 }).addTo(map);
-                    } else {
-                        layer = L.polygon(s.latlngs, { color: s.color, stroke: false, fillColor: s.color, fillOpacity: 0.4 }).addTo(map);
-                    }
-                    state.shapes.push({ 
-                        id: s.id || Date.now().toString(), type, name: s.name, color: s.color, 
-                        layer, latlngs: s.latlngs, streets: s.streets || [] 
-                    });
+                    if (type === 'line') layer = L.polyline(s.latlngs, { color: s.color, weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+                    else layer = L.polygon(s.latlngs, { color: s.color, stroke: false, fillColor: s.color, fillOpacity: 0.4 }).addTo(map);
+                    
+                    const migratedStreets = (s.streets || []).map(st => typeof st === 'string' ? { name: st, type: classifyStreetByName(st) } : st);
+                    const shapeObj = { id: s.id || Date.now().toString(), type, name: s.name, color: s.color, layer, latlngs: s.latlngs, streets: migratedStreets };
+                    state.shapes.push(shapeObj); bindShapePopup(shapeObj);
                 });
 
-                // Load dots (or old notes format)
-                const sourceDots = data.dots || data.notes || [];
-                sourceDots.forEach(d => {
-                    const dotId = d.id || Date.now().toString();
-                    const text = d.text || '';
-                    const color = d.color || '#fef08a'; // default old note color
-                    createDotMarker(dotId, text, color, d.latlng);
-                });
-                renderShapes();
+                (data.dots || data.notes || []).forEach(d => createDotMarker(d.id || Date.now().toString(), d.text || '', d.color || '#ef4444', d.latlng, d.isMoving || false));
+                renderShapes(); setMapElementsInteractive(state.drawMode === 'none');
             } catch (err) { console.error("Auto-load failed.", err); }
         }
 
-        function createDotMarker(id, text, color, latlng) {
+        window.showDotMenu = function(id) {
+            if(state.drawMode !== 'none') return;
+            document.querySelectorAll('.dot-action-menu').forEach(el => { el.classList.add('hidden'); el.classList.remove('flex'); });
+            const menu = document.getElementById(`dot-menu-${id}`);
+            if (menu) {
+                menu.classList.remove('hidden'); menu.classList.add('flex');
+                if (window[`dotTimer_${id}`]) clearTimeout(window[`dotTimer_${id}`]);
+                window[`dotTimer_${id}`] = setTimeout(() => { menu.classList.add('hidden'); menu.classList.remove('flex'); }, 10000);
+            }
+        };
+
+        function createDotMarker(id, text, color, latlng, isMoving = false) {
+            const existingIdx = state.dots.findIndex(d => d.id === id);
+            if (existingIdx > -1) { 
+                isMoving = state.dots[existingIdx].isMoving;
+                map.removeLayer(state.dots[existingIdx].marker); state.dots.splice(existingIdx, 1); 
+            }
+
             const dotHtml = `
-                <div class="relative flex items-center group pointer-events-auto mt-[-8px] ml-[-8px]">
-                    <div class="w-4 h-4 rounded-full border-2 border-white shadow-md flex-shrink-0" style="background-color: ${color}"></div>
-                    ${text ? `<div class="ml-1 px-2 py-0.5 bg-white/90 backdrop-blur rounded text-xs font-bold shadow-sm whitespace-nowrap text-gray-800">${text}</div>` : ''}
-                    <button class="absolute -top-2 -right-2 hidden group-hover:flex bg-red-500 text-white rounded-full w-4 h-4 items-center justify-center text-[10px] z-[10]" onclick="window.deleteDot('${id}')" title="Remove Dot"><i class="fa-solid fa-xmark"></i></button>
+                <div class="relative flex items-center pointer-events-auto mt-[-8px] ml-[-8px]">
+                    <div class="dot-indicator w-4 h-4 rounded-full border-2 border-white shadow-md flex-shrink-0 transition-transform ${isMoving ? 'animate-pulse scale-125' : ''}" style="background-color: ${color}"></div>
+                    ${text ? `<div class="ml-1.5 px-2.5 py-1 bg-white/95 backdrop-blur rounded-md text-xs font-bold shadow-md whitespace-nowrap text-gray-800 border border-gray-100">${text}</div>` : ''}
+                    <div id="dot-menu-${id}" class="dot-action-menu absolute -top-11 left-1/2 -translate-x-1/2 hidden gap-1.5 z-[1000] bg-white rounded-full p-1.5 shadow-xl border border-gray-200 transition-all">
+                        <button class="bg-blue-50 hover:bg-blue-500 hover:text-white text-blue-600 rounded-full w-8 h-8 flex items-center justify-center text-[11px] transition-colors shadow-sm" onclick="event.stopPropagation(); window.editDot('${id}')" title="Edit Text"><i class="fa-solid fa-pen"></i></button>
+                        <button class="bg-orange-50 hover:bg-orange-500 hover:text-white text-orange-600 rounded-full w-8 h-8 flex items-center justify-center text-[11px] transition-colors shadow-sm" onclick="event.stopPropagation(); window.toggleMoveDot('${id}')" title="Move Dot" id="moveBtn_${id}"><i class="fa-solid fa-arrows-up-down-left-right"></i></button>
+                        <button class="bg-red-50 hover:bg-red-500 hover:text-white text-red-600 rounded-full w-8 h-8 flex items-center justify-center text-[11px] transition-colors shadow-sm" onclick="event.stopPropagation(); window.deleteDot('${id}')" title="Delete Dot"><i class="fa-solid fa-trash"></i></button>
+                    </div>
                 </div>
             `;
             const icon = L.divIcon({ className: '', html: dotHtml, iconSize: [0, 0], iconAnchor: [0, 0] });
             const marker = L.marker(latlng, { icon: icon }).addTo(map);
-            state.dots.push({ id, text, color, latlng, marker });
+            
+            if (isMoving) {
+                marker.dragging.enable();
+                setTimeout(() => {
+                    const btn = document.getElementById(`moveBtn_${id}`);
+                    if(btn) { btn.classList.replace('bg-orange-50', 'bg-orange-500'); btn.classList.replace('text-orange-600', 'text-white'); }
+                }, 50);
+            }
+
+            marker.on('dragend', (e) => { const d = state.dots.find(x => x.id === id); if(d) { d.latlng = e.target.getLatLng(); saveToLocalStorage(); } });
+            marker.on('click', (e) => { L.DomEvent.stopPropagation(e); window.showDotMenu(id); });
+
+            state.dots.push({ id, text, color, latlng, marker, isMoving });
+            
+            if (state.drawMode !== 'none') { marker.options.interactive = false; marker._icon.style.pointerEvents = 'none'; }
         }
 
-        window.deleteDot = function(id) {
-            const idx = state.dots.findIndex(d => d.id == id);
-            if (idx > -1) { 
-                map.removeLayer(state.dots[idx].marker); 
-                state.dots.splice(idx, 1); 
-                saveToLocalStorage();
-            }
+        window.deleteDot = function(id) { const idx = state.dots.findIndex(d => d.id == id); if (idx > -1) { map.removeLayer(state.dots[idx].marker); state.dots.splice(idx, 1); saveToLocalStorage(); } };
+
+        window.editDot = function(id) {
+            const dot = state.dots.find(d => d.id === id); if (!dot) return;
+            state.pendingDotId = id; state.pendingDotLatLng = dot.latlng; state.selectedDotColor = dot.color; els.dotInput.value = dot.text; els.dotModalTitle.textContent = "Edit Dot Text";
+            
+            els.dotColorPicker.querySelectorAll('.color-btn').forEach(b => {
+                b.style.boxShadow = 'none'; b.classList.replace('ring-offset-2', 'ring-transparent');
+                if (b.dataset.color === dot.color) { b.classList.replace('ring-transparent', 'ring-offset-2'); b.style.boxShadow = `0 0 0 2px white, 0 0 0 4px ${dot.color}`; }
+            });
+            els.dotModal.classList.remove('hidden'); setTimeout(() => els.dotInput.focus(), 100);
         };
 
-        // Sidebar / Mobile Logic
+        window.toggleMoveDot = function(id) {
+            const dot = state.dots.find(d => d.id === id); if (!dot) return;
+            const btn = document.getElementById(`moveBtn_${id}`); const indicator = dot.marker._icon.querySelector('.dot-indicator');
+            dot.isMoving = !dot.isMoving;
+            
+            if (dot.isMoving) {
+                dot.marker.dragging.enable();
+                if(btn) { btn.classList.replace('bg-orange-50', 'bg-orange-500'); btn.classList.replace('text-orange-600', 'text-white'); }
+                if(indicator) indicator.classList.add('animate-pulse', 'scale-125');
+                updateStatus("Drag the dot to a new location.");
+            } else {
+                dot.marker.dragging.disable();
+                if(btn) { btn.classList.replace('bg-orange-500', 'bg-orange-50'); btn.classList.replace('text-white', 'text-orange-600'); }
+                if(indicator) indicator.classList.remove('animate-pulse', 'scale-125');
+                updateStatus("Dot position saved.");
+            }
+            saveToLocalStorage();
+        };
+
         function toggleMobilePanel(forceExpand) {
             if (window.innerWidth >= 768) return;
             const isExpanded = forceExpand !== undefined ? forceExpand : !els.sidebar.classList.contains('expanded');
-            if (isExpanded) {
-                els.sidebar.classList.add('expanded');
-                document.body.classList.add('panel-expanded');
-                els.mobileToggleText.textContent = "Close";
-            } else {
-                els.sidebar.classList.remove('expanded');
-                document.body.classList.remove('panel-expanded');
-                els.mobileToggleText.textContent = "Menu";
-            }
+            if (isExpanded) { els.sidebar.classList.add('expanded'); document.body.classList.add('panel-expanded'); els.mobileToggleText.textContent = "Close"; } 
+            else { els.sidebar.classList.remove('expanded'); document.body.classList.remove('panel-expanded'); els.mobileToggleText.textContent = "Menu"; }
         }
         els.mobileHeader.addEventListener('click', () => toggleMobilePanel());
 
-        // Centralized Mode Manager
         function setDrawMode(mode) {
             if (ssState.active) cancelAreaScreenshot();
-            
-            // Clean up any in-progress drawing (Fix 2)
+            if (state.editingShapeId && mode !== 'none') { updateStatus("Please Save/Lock the current shape before drawing."); return; }
+
             state.markers.forEach(m => map.removeLayer(m));
             if (state.tempLine) map.removeLayer(state.tempLine);
             if (state.rubberBand) map.removeLayer(state.rubberBand);
-            state.points = [];
-            state.markers = [];
-            state.tempLine = null;
-            state.rubberBand = null;
+            state.points = []; state.markers = []; state.tempLine = null; state.rubberBand = null;
 
-            // Reset UI states
             els.map.classList.remove('drawing-cursor', 'pin-cursor');
-            els.drawBtn.classList.remove('bg-red-50', 'text-red-600', 'border-red-200');
-            els.drawBtn.querySelector('span').textContent = 'Area';
-            
-            els.drawLineBtn.classList.remove('bg-red-50', 'text-red-600', 'border-red-200');
-            els.drawLineBtn.querySelector('span').textContent = 'Line';
-            
+            els.drawBtn.classList.remove('bg-red-50', 'text-red-600', 'border-red-200'); els.drawBtn.querySelector('span').textContent = 'Area';
+            els.drawLineBtn.classList.remove('bg-red-50', 'text-red-600', 'border-red-200'); els.drawLineBtn.querySelector('span').textContent = 'Line';
             els.dotBtn.classList.remove('bg-yellow-50', 'border-yellow-400', 'text-yellow-700');
             els.finishBtn.classList.replace('flex', 'hidden');
             els.joystickContainer.style.display = 'none';
             stopJoystickLoop();
 
-            // Apply new mode
-            state.drawMode = mode;
-            enableMapInteractions();
+            state.drawMode = mode; map.closePopup();
 
-            if (mode === 'polygon') {
-                els.map.classList.add('drawing-cursor');
-                els.drawBtn.classList.add('bg-red-50', 'text-red-600', 'border-red-200');
-                els.drawBtn.querySelector('span').textContent = 'Cancel';
-                disableMapInteractions();
-                updateStatus("Click map to draw Area. Right-click drag to pan.");
-                if (window.innerWidth < 768) els.joystickContainer.style.display = 'block';
-                toggleMobilePanel(false);
-            } else if (mode === 'line') {
-                els.map.classList.add('drawing-cursor');
-                els.drawLineBtn.classList.add('bg-red-50', 'text-red-600', 'border-red-200');
-                els.drawLineBtn.querySelector('span').textContent = 'Cancel';
-                disableMapInteractions();
-                updateStatus("Click map to draw Line. Right-click drag to pan.");
-                if (window.innerWidth < 768) els.joystickContainer.style.display = 'block';
-                toggleMobilePanel(false);
-            } else if (mode === 'dot') {
-                els.map.classList.add('pin-cursor');
-                els.dotBtn.classList.add('bg-yellow-50', 'border-yellow-400', 'text-yellow-700');
-                updateStatus("Click map to add a colored Dot / Label.");
-                toggleMobilePanel(false);
+            if (mode === 'none') {
+                enableMapInteractions(); setMapElementsInteractive(true); updateStatus("Auto-save is active.");
             } else {
-                updateStatus("Auto-save is active.");
+                disableMapInteractions(); setMapElementsInteractive(false);
+                if (mode === 'polygon') {
+                    els.map.classList.add('drawing-cursor'); els.drawBtn.classList.add('bg-red-50', 'text-red-600', 'border-red-200'); els.drawBtn.querySelector('span').textContent = 'Cancel';
+                    updateStatus("Click map to draw Area. Right-click drag to pan.");
+                    if (window.innerWidth < 768) els.joystickContainer.style.display = 'block'; toggleMobilePanel(false);
+                } else if (mode === 'line') {
+                    els.map.classList.add('drawing-cursor'); els.drawLineBtn.classList.add('bg-red-50', 'text-red-600', 'border-red-200'); els.drawLineBtn.querySelector('span').textContent = 'Cancel';
+                    updateStatus("Click map to draw Line. Right-click drag to pan.");
+                    if (window.innerWidth < 768) els.joystickContainer.style.display = 'block'; toggleMobilePanel(false);
+                } else if (mode === 'dot') {
+                    els.map.classList.add('pin-cursor'); els.dotBtn.classList.add('bg-yellow-50', 'border-yellow-400', 'text-yellow-700');
+                    updateStatus("Click map to add a colored Dot / Label. (Previous items locked to avoid overlaps)"); toggleMobilePanel(false);
+                }
             }
         }
 
-        // Action Buttons Setup
         els.drawBtn.onclick = () => setDrawMode(state.drawMode === 'polygon' ? 'none' : 'polygon');
         els.drawLineBtn.onclick = () => setDrawMode(state.drawMode === 'line' ? 'none' : 'line');
         els.dotBtn.onclick = () => setDrawMode(state.drawMode === 'dot' ? 'none' : 'dot');
 
-        function handleMapClick(e) {
+        map.on('click', (e) => {
+            document.querySelectorAll('.dot-action-menu').forEach(el => { el.classList.add('hidden'); el.classList.remove('flex'); });
             if (state.isRightClickDragging || state.joystickActive) return;
 
             if (ssState.active && ssState.pins.length < 2) {
-                if (ssState.pins.length === 0) {
-                    const m = L.marker(e.latlng).addTo(map);
-                    ssState.pins.push(m);
-                    updateStatus("Click to set the opposite corner of the capture area.");
-                } else if (ssState.pins.length === 1) {
-                    const bounds = L.latLngBounds(ssState.pins[0].getLatLng(), e.latlng);
-                    map.removeLayer(ssState.pins[0]);
-                    ssState.pins = [];
-                    setupFourPins(bounds);
-                }
+                if (ssState.pins.length === 0) { const m = L.marker(e.latlng).addTo(map); ssState.pins.push(m); updateStatus("Click to set the opposite corner of the capture area."); } 
+                else if (ssState.pins.length === 1) { const bounds = L.latLngBounds(ssState.pins[0].getLatLng(), e.latlng); map.removeLayer(ssState.pins[0]); ssState.pins = []; setupFourPins(bounds); }
                 return;
             }
 
             if (state.drawMode === 'dot') {
-                state.pendingDotLatLng = e.latlng;
-                els.dotInput.value = '';
-                els.dotModal.classList.remove('hidden');
-                setTimeout(() => els.dotInput.focus(), 100);
-                return;
+                state.pendingDotId = null; state.pendingDotLatLng = e.latlng; els.dotInput.value = ''; els.dotModalTitle.textContent = "Add New Dot";
+                state.selectedDotColor = COLORS_30[0];
+                els.dotColorPicker.querySelectorAll('.color-btn').forEach((b, idx) => {
+                    b.style.boxShadow = 'none'; b.classList.replace('ring-offset-2', 'ring-transparent');
+                    if(idx === 0) { b.classList.replace('ring-transparent', 'ring-offset-2'); b.style.boxShadow = `0 0 0 2px white, 0 0 0 4px ${b.dataset.color}`; }
+                });
+                els.dotModal.classList.remove('hidden'); setTimeout(() => els.dotInput.focus(), 100); return;
             }
 
             if (state.drawMode === 'polygon' || state.drawMode === 'line') {
                 const latlng = e.latlng;
-                
-                // Close polygon fast check
                 if (state.drawMode === 'polygon' && state.points.length >= 3) {
-                    const pntCurrent = map.latLngToLayerPoint(latlng);
-                    const pntFirst = map.latLngToLayerPoint(state.points[0]);
-                    if (pntCurrent.distanceTo(pntFirst) < 30) {
-                        finishShape('polygon');
-                        return;
-                    }
+                    const pntCurrent = map.latLngToLayerPoint(latlng); const pntFirst = map.latLngToLayerPoint(state.points[0]);
+                    if (pntCurrent.distanceTo(pntFirst) < 30) { triggerShapeCompletion('polygon'); return; }
                 }
                 
-                state.points.push(latlng);
-                const isFirst = state.points.length === 1;
-                const icon = L.divIcon({
-                    className: isFirst ? 'pulse-icon' : 'bg-white border-2 border-blue-600 rounded-full',
-                    iconSize: isFirst ? [24, 24] : [14, 14],
-                    iconAnchor: isFirst ? [12, 12] : [7, 7]
-                });
-                
+                state.points.push(latlng); const isFirst = state.points.length === 1;
+                const iconClass = 'bg-white border-2 border-blue-600 rounded-full shadow-sm';
+                const icon = L.divIcon({ className: iconClass, iconSize: [14, 14], iconAnchor: [7, 7] });
                 const marker = L.marker(latlng, { icon: icon, zIndexOffset: 5000 }).addTo(map);
-                if (isFirst && state.drawMode === 'polygon') {
-                    marker.on('click', (ev) => { L.DomEvent.stopPropagation(ev); if (state.points.length >= 3) finishShape('polygon'); });
-                }
-                state.markers.push(marker);
-                updateDrawingLines();
+                
+                if (isFirst && state.drawMode === 'polygon') { marker.on('click', (ev) => { L.DomEvent.stopPropagation(ev); if (state.points.length >= 3) triggerShapeCompletion('polygon'); }); }
+                
+                state.markers.push(marker); updateDrawingLines();
 
-                // Show Finish button
                 if (state.drawMode === 'polygon' && state.points.length >= 3) {
-                    els.finishBtnText.textContent = "Close Area Now";
-                    els.finishBtn.classList.replace('hidden', 'flex');
-                    els.finishBtn.onclick = () => finishShape('polygon');
+                    els.finishBtnText.textContent = "Close Area Now"; els.finishBtn.classList.replace('hidden', 'flex'); els.finishBtn.onclick = () => triggerShapeCompletion('polygon');
                 } else if (state.drawMode === 'line' && state.points.length >= 2) {
-                    els.finishBtnText.textContent = "Finish Line Now";
-                    els.finishBtn.classList.replace('hidden', 'flex');
-                    els.finishBtn.onclick = () => finishShape('line');
+                    els.finishBtnText.textContent = "Finish Line Now"; els.finishBtn.classList.replace('hidden', 'flex'); els.finishBtn.onclick = () => triggerShapeCompletion('line');
                 }
             }
-        }
-        map.on('click', handleMapClick);
+        });
 
         function updateDrawingLines() {
             if (state.tempLine) map.removeLayer(state.tempLine);
-            if (state.points.length > 1) {
-                state.tempLine = L.polyline(state.points, { 
-                    color: state.drawMode === 'polygon' ? '#2563eb' : '#f59e0b', 
-                    weight: 4, 
-                    dashArray: state.drawMode === 'line' ? '10, 10' : null,
-                    interactive: false 
-                }).addTo(map);
-            }
+            if (state.points.length > 1) { state.tempLine = L.polyline(state.points, { color: state.drawMode === 'polygon' ? '#2563eb' : '#f59e0b', weight: 4, dashArray: state.drawMode === 'line' ? '10, 10' : null, interactive: false }).addTo(map); }
         }
 
         map.on('mousemove', (e) => {
             if ((state.drawMode === 'polygon' || state.drawMode === 'line') && state.points.length > 0) {
                 if (state.rubberBand) map.removeLayer(state.rubberBand);
-                state.rubberBand = L.polyline([state.points[state.points.length - 1], e.latlng], { 
-                    color: state.drawMode === 'polygon' ? '#2563eb' : '#f59e0b', 
-                    weight: 2, 
-                    dashArray: '5, 5', 
-                    opacity: 0.5 
-                }).addTo(map);
+                state.rubberBand = L.polyline([state.points[state.points.length - 1], e.latlng], { color: state.drawMode === 'polygon' ? '#2563eb' : '#f59e0b', weight: 2, dashArray: '5, 5', opacity: 0.5 }).addTo(map);
             }
         });
 
-        function finishShape(type) {
+        function triggerShapeCompletion(type) {
             if (type === 'polygon' && state.points.length < 3) return;
             if (type === 'line' && state.points.length < 2) return;
 
-            const color = SHAPE_COLORS[state.colorIndex % SHAPE_COLORS.length];
-            state.colorIndex++;
+            state.pendingShape = { type: type, points: [...state.points] };
+            els.shapeModalTitle.textContent = type === 'polygon' ? "Name your Area" : "Name your Line";
+            els.shapeNameInput.value = (type === 'polygon' ? 'Area ' : 'Line ') + (state.shapes.length + 1);
+            state.selectedShapeColor = COLORS_20[state.shapes.length % 20];
+            
+            els.shapeColorPicker.querySelectorAll('.color-btn').forEach((b) => {
+                b.style.boxShadow = 'none'; b.classList.replace('ring-offset-2', 'ring-transparent');
+                if(b.dataset.color === state.selectedShapeColor) { b.classList.replace('ring-transparent', 'ring-offset-2'); b.style.boxShadow = `0 0 0 2px white, 0 0 0 4px ${b.dataset.color}`; }
+            });
+
+            els.shapeModal.classList.remove('hidden'); setTimeout(() => els.shapeNameInput.focus(), 100); setDrawMode('none'); 
+        }
+
+        els.cancelShapeBtn.onclick = () => { els.shapeModal.classList.add('hidden'); state.pendingShape = null; };
+        els.saveShapeBtn.onclick = () => {
+            if (!state.pendingShape) return;
+            els.shapeModal.classList.add('hidden');
+            
+            const type = state.pendingShape.type; const points = state.pendingShape.points; const color = state.selectedShapeColor;
+            const name = els.shapeNameInput.value.trim() || ((type === 'polygon' ? 'Area ' : 'Line ') + (state.shapes.length + 1));
             
             let layer;
-            if (type === 'polygon') {
-                layer = L.polygon(state.points, { color, stroke: false, fillColor: color, fillOpacity: 0.4 }).addTo(map);
-            } else {
-                layer = L.polyline(state.points, { color, weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round' }).addTo(map);
-            }
+            if (type === 'polygon') layer = L.polygon(points, { color, stroke: false, fillColor: color, fillOpacity: 0.4 }).addTo(map);
+            else layer = L.polyline(points, { color, weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round' }).addTo(map);
             
             const shapeId = Date.now().toString();
-            state.shapes.push({ 
-                id: shapeId, 
-                type: type,
-                name: (type === 'polygon' ? 'Area ' : 'Line ') + (state.shapes.length + 1), 
-                color: color, 
-                layer: layer, 
-                latlngs: [...state.points],
-                streets: [] 
-            });
+            const shapeObj = { id: shapeId, type: type, name: name, color: color, layer: layer, latlngs: [...points], streets: [] };
             
-            const finalPoints = [...state.points];
-            setDrawMode('none'); 
-            renderShapes(); 
-            saveToLocalStorage(); 
-            toggleMobilePanel(true); 
-            fetchStreets(finalPoints, shapeId, type);
+            state.shapes.push(shapeObj); bindShapePopup(shapeObj); state.pendingShape = null;
+            renderShapes(); saveToLocalStorage(); toggleMobilePanel(true); fetchStreets(points, shapeId, type);
+        };
+
+        els.saveDotBtn.onclick = () => {
+            const text = els.dotInput.value.trim(); const id = state.pendingDotId || Date.now().toString();
+            if (state.pendingDotLatLng) {
+                let isMoving = false; const existing = state.dots.find(d => d.id === state.pendingDotId); if (existing) isMoving = existing.isMoving;
+                createDotMarker(id, text, state.selectedDotColor, state.pendingDotLatLng, isMoving); saveToLocalStorage();
+            }
+            els.dotModal.classList.add('hidden'); if(state.drawMode === 'dot') setDrawMode('none');
+        };
+        els.cancelDotBtn.onclick = () => { els.dotModal.classList.add('hidden'); if(state.drawMode === 'dot') setDrawMode('none'); }
+
+        // --- Fetch & Classify Streets (Enhanced Optimization) ---
+        function classifyStreetByName(name) {
+            const lower = name.toLowerCase();
+            if (lower.match(/\b(road|rd|avenue|ave|boulevard|blvd|highway|expressway|drive|dr|way)\b/)) return 'road';
+            return 'street';
+        }
+
+        // Reduces points strictly based on geometric distance to avoid overly heavy API loads
+        function simplifyLatLngs(latlngs, toleranceMeters = 5) {
+            if (!latlngs || latlngs.length < 4) return latlngs;
+            const simplified = [latlngs[0]];
+            for (let i = 1; i < latlngs.length - 1; i++) {
+                if (latlngs[i].distanceTo(simplified[simplified.length - 1]) > toleranceMeters) {
+                    simplified.push(latlngs[i]);
+                }
+            }
+            simplified.push(latlngs[latlngs.length - 1]);
+            return simplified;
         }
 
         async function fetchStreets(points, shapeId, type) {
-            showLoading(true, "Identifying Streets...", "Querying OpenStreetMap data");
+            showLoading(true, "Identifying Streets...", "Optimizing boundaries & querying OSM");
             
+            // Optimize Query Strings
+            const simplifiedPoints = simplifyLatLngs(points, 8); // 8-meter simplification prevents massive coordinate strings
             let query = '';
+            
             if (type === 'polygon') {
-                const coords = points.map(p => `${p.lat.toFixed(6)} ${p.lng.toFixed(6)}`).join(' ');
-                const polyString = `${coords} ${points[0].lat.toFixed(6)} ${points[0].lng.toFixed(6)}`;
-                query = `[out:json][timeout:25];(way["highway"]["name"](poly:"${polyString}");way["place"="square"]["name"](poly:"${polyString}");way["place"="street"]["name"](poly:"${polyString}"););out tags;`;
+                const coords = simplifiedPoints.map(p => `${p.lat.toFixed(5)} ${p.lng.toFixed(5)}`).join(' ');
+                // added qt (quadtree) to sort faster server side
+                query = `[out:json][timeout:15];(way["highway"]["name"](poly:"${coords}"););out tags qt;`;
             } else if (type === 'line') {
-                // Overpass format for multiple points around a radius: (around:radius, lat1,lon1, lat2,lon2...)
-                const coordsList = points.map(p => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`).join(',');
-                query = `[out:json][timeout:25];(way["highway"]["name"](around:15, ${coordsList});way["place"="square"]["name"](around:15, ${coordsList});way["place"="street"]["name"](around:15, ${coordsList}););out tags;`;
+                const coordsList = simplifiedPoints.map(p => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(',');
+                query = `[out:json][timeout:15];(way["highway"]["name"](around:25,${coordsList}););out tags qt;`;
             }
 
+            // High Performance Fallbacks
+            const endpoints = [
+                'https://lz4.overpass-api.de/api/interpreter', // Often faster cache proxy
+                'https://overpass-api.de/api/interpreter',
+                'https://overpass.kumi.systems/api/interpreter',
+                'https://overpass.osm.ch/api/interpreter'
+            ];
+
+            let data = null; let success = false;
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(query) });
+                    if (response.ok) { data = await response.json(); success = true; break; }
+                } catch (e) { console.warn(`Failed attempt on ${endpoint}`); }
+            }
+
+            if (!success || !data) { updateStatus("API Rate-Limited. Try resaving/locking shape, or add streets manually."); showLoading(false); return; }
+
             try {
-                const response = await fetch('https://overpass-api.de/api/interpreter', { 
-                    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(query)
-                });
-                if (!response.ok) throw new Error("API Failure");
-                const data = await response.json();
-                const names = new Set();
-                data.elements.forEach(el => el.tags?.name && names.add(el.tags.name));
+                const streetMap = new Map();
+                if (data.elements && data.elements.length > 0) {
+                    data.elements.forEach(el => {
+                        if (el.tags?.name) {
+                            const hw = el.tags.highway || ''; let stType = 'street';
+                            if (['primary', 'secondary', 'tertiary', 'trunk', 'motorway'].includes(hw)) stType = 'road';
+                            else stType = classifyStreetByName(el.tags.name);
+                            streetMap.set(el.tags.name, stType);
+                        }
+                    });
+                }
+
                 const shape = state.shapes.find(s => s.id === shapeId);
                 if (shape) { 
-                    shape.streets = Array.from(names).sort(); 
-                    renderShapes(); 
-                    saveToLocalStorage(); 
+                    shape.streets = Array.from(streetMap.entries()).map(([name, type]) => ({name, type})).sort((a,b) => a.name.localeCompare(b.name)); 
+                    renderShapes(); saveToLocalStorage(); 
+                    if (shape.streets.length === 0) updateStatus(`Shape saved, but no named streets found inside.`); 
+                    else updateStatus(`Successfully found ${shape.streets.length} streets.`);
                 }
-            } catch (e) { 
-                console.error(e);
-                updateStatus("Overpass API Error. You can manually Add streets."); 
-            } finally { 
-                showLoading(false); 
-            }
+            } catch (e) { updateStatus("Error processing mapping data."); } finally { showLoading(false); }
         }
 
-        // --- Dot Logic ---
-        els.dotColorPicker.addEventListener('click', (e) => {
-            if (e.target.classList.contains('color-btn')) {
-                // Reset styling for all
-                els.dotColorPicker.querySelectorAll('.color-btn').forEach(btn => btn.classList.replace('ring-offset-2', 'ring-transparent'));
-                // Apply styling to selected
-                e.target.classList.replace('ring-transparent', 'ring-offset-2');
-                state.selectedDotColor = e.target.dataset.color;
-            }
-        });
+        window.toggleEditShape = function(shapeId) {
+            const shape = state.shapes.find(s => s.id === shapeId); if (!shape) return;
+            shape.layer.closePopup();
 
-        els.saveDotBtn.onclick = () => {
-            const text = els.dotInput.value.trim();
-            if (state.pendingDotLatLng) {
-                createDotMarker(Date.now().toString(), text, state.selectedDotColor, state.pendingDotLatLng);
-                saveToLocalStorage();
+            if (state.editingShapeId === shapeId) {
+                state.editMarkers.forEach(m => map.removeLayer(m)); state.editMarkers = []; state.editingShapeId = null;
+                renderShapes(); saveToLocalStorage(); fetchStreets(shape.latlngs, shape.id, shape.type); updateStatus("Changes saved and re-scanned."); return;
             }
-            els.dotModal.classList.add('hidden'); 
-            setDrawMode('none');
+
+            if (state.editingShapeId) { const prev = state.shapes.find(s => s.id === state.editingShapeId); if(prev) window.toggleEditShape(prev.id); }
+
+            state.editingShapeId = shapeId; setDrawMode('none');
+
+            const vertexIcon = L.divIcon({ className: 'vertex-marker', iconSize: [16, 16], iconAnchor: [8, 8] });
+            shape.latlngs.forEach((ll, idx) => {
+                const m = L.marker(ll, { draggable: true, icon: vertexIcon, zIndexOffset: 8000 }).addTo(map);
+                m.on('drag', (e) => { shape.latlngs[idx] = e.target.getLatLng(); shape.layer.setLatLngs(shape.latlngs); });
+                state.editMarkers.push(m);
+            });
+
+            renderShapes(); updateStatus(`Editing ${shape.name}. Drag vertices to move.`);
         };
-        els.cancelDotBtn.onclick = () => { els.dotModal.classList.add('hidden'); setDrawMode('none'); }
 
-        // --- Area Screenshot Selection Logic ---
-        function startAreaScreenshot() {
-            setDrawMode('none');
-            ssState.active = true;
-            els.map.classList.add('drawing-cursor');
-            els.screenshotAreaBtn.classList.add('bg-indigo-200', 'text-indigo-800');
-            updateStatus("Click to set the first corner of your exact screenshot area.");
-            toggleMobilePanel(false);
-        }
-
-        function cancelAreaScreenshot() {
-            ssState.active = false;
-            ssState.pins.forEach(p => map.removeLayer(p));
-            if (ssState.rect) map.removeLayer(ssState.rect);
-            if (ssState.ui) map.removeLayer(ssState.ui);
-            ssState.pins = []; ssState.rect = null; ssState.ui = null;
-            
-            els.map.classList.remove('drawing-cursor');
-            els.screenshotAreaBtn.classList.remove('bg-indigo-200', 'text-indigo-800');
-            updateStatus("Auto-save is active.");
-        }
-
-        function setupFourPins(bounds) {
-            const corners = [bounds.getNorthWest(), bounds.getNorthEast(), bounds.getSouthEast(), bounds.getSouthWest()];
-            const pinIcon = L.divIcon({
-                className: 'bg-indigo-600 border-2 border-white rounded-full shadow-lg',
-                iconSize: [20, 20],
-                iconAnchor: [10, 10]
-            });
-
-            corners.forEach((latlng, idx) => {
-                const m = L.marker(latlng, { icon: pinIcon, draggable: true, zIndexOffset: 6000 }).addTo(map);
-                m.on('drag', () => handlePinDrag(idx, m.getLatLng()));
-                ssState.pins.push(m);
-            });
-
-            ssState.rect = L.rectangle(bounds, { color: '#4f46e5', weight: 2, fillOpacity: 0.1, dashArray: '5,5', interactive: false }).addTo(map);
-
-            const uiHtml = `
-                <div class="bg-white p-2.5 rounded-xl shadow-[0_5px_20px_rgba(0,0,0,0.3)] flex gap-2 pointer-events-auto border border-gray-200">
-                    <button onclick="captureAreaConfirm()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm"><i class="fa-solid fa-camera mr-1"></i> Capture HD</button>
-                    <button onclick="cancelAreaScreenshot()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-200 transition-colors">Cancel</button>
-                </div>
-            `;
-            const uiIcon = L.divIcon({ className: '', html: uiHtml, iconSize: [220, 50], iconAnchor: [110, 25] });
-            ssState.ui = L.marker(bounds.getCenter(), { icon: uiIcon, zIndexOffset: 7000 }).addTo(map);
-            
-            updateStatus("Drag the 4 corner pins to adjust the exact area, then click Capture HD.");
-        }
-
-        function handlePinDrag(draggedIdx, newLatLng) {
-            const oppIdx = (draggedIdx + 2) % 4; // Opposite corner
-            const oppLatLng = ssState.pins[oppIdx].getLatLng();
-            const bounds = L.latLngBounds(newLatLng, oppLatLng);
-            
-            ssState.pins[0].setLatLng(bounds.getNorthWest());
-            ssState.pins[1].setLatLng(bounds.getNorthEast());
-            ssState.pins[2].setLatLng(bounds.getSouthEast());
-            ssState.pins[3].setLatLng(bounds.getSouthWest());
-            
-            ssState.rect.setBounds(bounds);
-            ssState.ui.setLatLng(bounds.getCenter());
-        }
-
-        window.captureAreaConfirm = async function() {
-            const bounds = ssState.rect.getBounds();
-            cancelAreaScreenshot(); // clear UI pins BEFORE capturing
-            await captureHighRes(bounds);
-        }
-
-        // --- High Resolution Pixel-Perfect Capture ---
-        async function captureHighRes(bounds = null) {
-            showLoading(true, "Capturing Map", "Processing image data...");
-            els.loader.classList.remove('bg-white/90');
-            els.loader.classList.add('bg-white'); 
-            
-            const originalStyle = {
-                width: els.map.style.width, height: els.map.style.height,
-                position: els.map.style.position, zIndex: els.map.style.zIndex,
-                top: els.map.style.top, left: els.map.style.left
-            };
-            const originalCenter = map.getCenter();
-            const originalZoom = map.getZoom();
-
-            let targetWidth = 2560; 
-            let targetHeight = 1440;
-
-            if (bounds) {
-                // Ensure map resizes roughly to ratio for max quality
-                const p1 = map.project(bounds.getNorthWest(), 10);
-                const p2 = map.project(bounds.getSouthEast(), 10);
-                const ratio = Math.abs(p1.x - p2.x) / Math.abs(p1.y - p2.y);
-                targetHeight = Math.round(targetWidth / ratio);
-                if (targetHeight > 4000) { targetHeight = 4000; targetWidth = Math.round(targetHeight * ratio); }
-            }
-
-            document.body.classList.add('is-screenshotting');
-            
-            Object.assign(els.map.style, {
-                position: 'fixed', top: '0', left: '0',
-                width: `${targetWidth}px`, height: `${targetHeight}px`,
-                zIndex: '-10'
-            });
-
-            map.invalidateSize({ animate: false });
-            if (bounds) map.fitBounds(bounds, { animate: false, padding: [0, 0] });
-
-            await new Promise(r => setTimeout(r, 2000));
-
-            try {
-                els.loaderSubText.textContent = "Stitching and cropping...";
-                
-                // Capture the entire scaled map
-                const fullCanvas = await html2canvas(els.map, {
-                    useCORS: true, allowTaint: true, logging: false, scale: 1, backgroundColor: '#f8fafc'
-                });
-                
-                let finalCanvas = fullCanvas;
-
-                if (bounds) {
-                    // EXACT pixel-perfect crop using mapped screen coordinates
-                    const nw = map.latLngToContainerPoint(bounds.getNorthWest());
-                    const se = map.latLngToContainerPoint(bounds.getSouthEast());
-                    
-                    const cropX = Math.max(0, Math.round(Math.min(nw.x, se.x)));
-                    const cropY = Math.max(0, Math.round(Math.min(nw.y, se.y)));
-                    const cropW = Math.round(Math.abs(se.x - nw.x));
-                    const cropH = Math.round(Math.abs(se.y - nw.y));
-
-                    const cropCanvas = document.createElement('canvas');
-                    cropCanvas.width = cropW;
-                    cropCanvas.height = cropH;
-                    const ctx = cropCanvas.getContext('2d');
-                    
-                    // Draw only the perfectly cropped section onto final canvas
-                    ctx.drawImage(fullCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-                    finalCanvas = cropCanvas;
-                }
-                
-                const image = finalCanvas.toDataURL("image/jpeg", 0.95);
-                const link = document.createElement('a');
-                link.href = image;
-                link.download = `Tricon_HD_${bounds ? 'Area' : 'View'}_${Date.now()}.jpg`;
-                link.click();
-                updateStatus("Screenshot saved successfully.");
-            } catch (err) {
-                console.error(err);
-                updateStatus("Failed to take screenshot.");
-            } finally {
-                Object.assign(els.map.style, originalStyle);
-                map.invalidateSize({ animate: false });
-                map.setView(originalCenter, originalZoom, { animate: false });
-                
-                document.body.classList.remove('is-screenshotting');
-                els.loader.classList.remove('bg-white');
-                els.loader.classList.add('bg-white/90');
-                showLoading(false);
-            }
-        }
-
-        els.screenshotViewBtn.onclick = () => { setDrawMode('none'); captureHighRes(null); };
-        els.screenshotAreaBtn.onclick = startAreaScreenshot;
-
-        // Joystick Navigation
-        function startJoystickLoop(vx, vy) {
-            stopJoystickLoop();
-            state.joystickLoop = setInterval(() => {
-                const center = map.getCenter();
-                const factor = 0.00001 * Math.pow(2, 18 - map.getZoom());
-                map.setView([center.lat + vy * factor, center.lng + vx * factor], map.getZoom(), { animate: false });
-            }, 16);
-        }
-
-        function stopJoystickLoop() {
-            if (state.joystickLoop) {
-                clearInterval(state.joystickLoop);
-                state.joystickLoop = null;
-            }
-        }
-
-        els.joystickContainer.addEventListener('touchstart', (e) => { state.joystickActive = true; handleJoystickMove(e); });
-        els.joystickContainer.addEventListener('touchmove', (e) => { if (state.joystickActive) { handleJoystickMove(e); e.preventDefault(); } });
-        els.joystickContainer.addEventListener('touchend', () => {
-            state.joystickActive = false;
-            els.joystickKnob.style.transform = 'translate(-50%, -50%)';
-            stopJoystickLoop();
-        });
-
-        function handleJoystickMove(e) {
-            const touch = e.touches[0];
-            const rect = els.joystickContainer.getBoundingClientRect();
-            let dx = touch.clientX - (rect.left + rect.width / 2);
-            let dy = touch.clientY - (rect.top + rect.height / 2);
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            const max = rect.width / 2;
-            if (dist > max) { dx *= max / dist; dy *= max / dist; }
-            els.joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-            startJoystickLoop(dx * 0.5, -dy * 0.5);
-        }
-
-        // Advanced Navigation Overrides
-        els.map.addEventListener('mousedown', (e) => {
-            if ((state.drawMode === 'polygon' || state.drawMode === 'line') && e.button === 2) { 
-                state.isRightClickDragging = true;
-                state.lastRightClickPos = { x: e.clientX, y: e.clientY };
-                els.map.style.cursor = 'grabbing';
-            }
-        });
-        window.addEventListener('mousemove', (e) => {
-            if (state.isRightClickDragging) {
-                const dx = e.clientX - state.lastRightClickPos.x;
-                const dy = e.clientY - state.lastRightClickPos.y;
-                map.panBy([-dx, -dy], { animate: false });
-                state.lastRightClickPos = { x: e.clientX, y: e.clientY };
-            }
-        });
-        window.addEventListener('mouseup', (e) => {
-            if (e.button === 2) {
-                state.isRightClickDragging = false;
-                if (state.drawMode === 'polygon' || state.drawMode === 'line') els.map.style.cursor = 'crosshair';
-            }
-        });
-        els.map.addEventListener('contextmenu', (e) => { if (state.drawMode !== 'none' || ssState.active) e.preventDefault(); });
-
-        function handleTwoFingerPanStart(e) { if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length >= 2) map.dragging.enable(); }
-        function handleTwoFingerPanEnd(e) { if (e.originalEvent && (!e.originalEvent.touches || e.originalEvent.touches.length < 2)) map.dragging.disable(); }
-
-        function disableMapInteractions() { 
-            map.dragging.disable(); map.doubleClickZoom.disable();
-            map.addHandler('twoFingerPan', L.Handler.TouchExtend);
-            if (map.touchExtend) map.touchExtend.enable();
-            map.on('touchstart', handleTwoFingerPanStart); map.on('touchend', handleTwoFingerPanEnd);
-        }
-
-        function enableMapInteractions() { 
-            map.dragging.enable(); map.touchZoom.enable(); map.doubleClickZoom.enable(); map.scrollWheelZoom.enable();
-            map.off('touchstart', handleTwoFingerPanStart); map.off('touchend', handleTwoFingerPanEnd);
-        }
-
-        // Data Rendering
         function renderShapes() {
             const uniqueStreets = new Set();
             if (state.shapes.length === 0) {
@@ -971,82 +894,86 @@
             }
 
             els.resultsList.innerHTML = state.shapes.map(shape => {
-                shape.streets.forEach(s => uniqueStreets.add(s));
-                const streetList = shape.streets.length ? shape.streets.map(s => `
-                    <div class="bg-gray-50 p-2 rounded border border-gray-100 flex justify-between items-center mb-1 group">
-                        <span class="text-xs text-gray-700">${s}</span>
-                        <button class="remove-street-btn text-gray-400 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1" data-shape-id="${shape.id}" data-street="${s.replace(/"/g, '&quot;')}"><i class="fa-solid fa-xmark text-xs"></i></button>
-                    </div>
-                `).join('') : '<p class="text-xs text-gray-400 p-2 italic text-center">No streets found.</p>';
+                const isEditing = state.editingShapeId === shape.id;
+                
+                const streetList = shape.streets.length ? shape.streets.map(s => {
+                    uniqueStreets.add(s.name); const isRoad = s.type === 'road';
+                    const bgClass = isRoad ? 'bg-emerald-50' : 'bg-blue-50'; const textClass = isRoad ? 'text-emerald-800' : 'text-blue-700';
+                    const borderClass = isRoad ? 'border-emerald-100' : 'border-blue-100'; const labelBg = isRoad ? 'bg-emerald-200/50 text-emerald-900' : 'bg-blue-200/50 text-blue-900';
+                    
+                    return `
+                    <div class="${bgClass} ${borderClass} p-2 rounded-lg border flex justify-between items-center mb-1 group transition-colors shadow-sm">
+                        <span class="text-xs font-semibold ${textClass}">${s.name} <span class="${labelBg} px-1.5 py-0.5 rounded text-[8px] uppercase ml-1 opacity-80">${s.type}</span></span>
+                        <button class="remove-street-btn text-gray-400 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1" data-shape-id="${shape.id}" data-street="${s.name.replace(/"/g, '&quot;')}"><i class="fa-solid fa-xmark text-xs"></i></button>
+                    </div>`;
+                }).join('') : '<p class="text-xs text-gray-400 p-2 italic text-center">No streets found.</p>';
 
                 const iconClass = shape.type === 'line' ? 'fa-route' : 'fa-draw-polygon';
 
                 return `
-                <div class="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                    <div class="p-2 border-b flex justify-between items-center bg-gray-50/80">
+                <div class="mb-4 bg-white rounded-xl shadow-sm border-[3px] overflow-hidden transition-all duration-300 shape-card ${isEditing ? 'ring-4 ring-orange-200' : ''}" data-shape-id="${shape.id}" style="border-color: ${shape.color}40;">
+                    <div class="p-2 border-b flex justify-between items-center cursor-pointer shape-header hover:bg-gray-50/50" style="background-color: ${shape.color}15;" title="Click to focus & blink on map">
                         <div class="flex items-center gap-2 flex-1 min-w-0">
-                            <i class="fa-solid ${iconClass} text-xs" style="color: ${shape.color}"></i>
-                            <input type="text" value="${shape.name}" class="shape-name-input font-bold text-gray-700 bg-transparent w-full text-sm outline-none truncate" data-id="${shape.id}">
+                            <i class="fa-solid ${iconClass} text-sm drop-shadow-sm" style="color: ${shape.color}"></i>
+                            <input type="text" value="${shape.name}" class="shape-name-input font-black text-gray-800 bg-transparent w-full text-sm outline-none truncate" data-id="${shape.id}">
                         </div>
-                        <div class="flex items-center gap-1 shrink-0">
-                            <button class="add-street-btn text-green-600 hover:text-green-700 p-1 flex items-center gap-1 text-[10px] font-bold uppercase" data-id="${shape.id}"><i class="fa-solid fa-plus"></i> Add</button>
-                            <button class="view-shape-btn text-blue-500 hover:text-blue-700 p-1 flex items-center gap-1 text-[10px] font-bold uppercase mx-1" data-id="${shape.id}"><i class="fa-solid fa-eye"></i> View</button>
-                            <button class="copy-shape-btn text-gray-400 hover:text-blue-500 p-1" data-id="${shape.id}"><i class="fa-regular fa-copy text-xs"></i></button>
-                            <button class="delete-shape-btn text-gray-400 hover:text-red-500 p-1" data-id="${shape.id}"><i class="fa-solid fa-trash text-xs"></i></button>
+                        <div class="flex items-center gap-0.5 shrink-0 bg-white/80 backdrop-blur rounded-lg p-0.5 shadow-sm border border-gray-100/50">
+                            <button class="add-street-btn text-gray-500 hover:text-green-600 p-1.5 flex items-center justify-center rounded-md hover:bg-green-50 transition-colors" data-id="${shape.id}" title="Add Manually"><i class="fa-solid fa-plus text-[11px]"></i></button>
+                            <button class="view-shape-btn text-gray-500 hover:text-blue-600 p-1.5 flex items-center justify-center rounded-md hover:bg-blue-50 transition-colors" data-id="${shape.id}" title="View List"><i class="fa-solid fa-eye text-[11px]"></i></button>
+                            <button onclick="window.toggleEditShape('${shape.id}')" class="p-1.5 flex items-center justify-center rounded-md transition-colors ${isEditing ? 'text-orange-700 bg-orange-100 shadow-inner' : 'text-gray-500 hover:text-orange-500 hover:bg-orange-50'}" title="${isEditing ? 'Lock & Rescan' : 'Move Vertices'}">
+                                <i class="fa-solid ${isEditing ? 'fa-lock' : 'fa-arrows-up-down-left-right'} text-[11px]"></i>
+                            </button>
+                            <button class="delete-shape-btn text-gray-500 hover:text-red-500 p-1.5 flex items-center justify-center rounded-md hover:bg-red-50 transition-colors" data-id="${shape.id}" title="Delete"><i class="fa-solid fa-trash text-[11px]"></i></button>
                         </div>
                     </div>
-                    <div class="p-2 bg-white max-h-48 overflow-y-auto scroller">${streetList}</div>
+                    <div class="p-2.5 bg-white max-h-48 overflow-y-auto scroller space-y-1.5">${streetList}</div>
                 </div>`;
             }).reverse().join('');
 
-            els.countBadge.textContent = uniqueStreets.size;
-            els.countBadge.classList.remove('hidden'); els.copyAllGlobalBtn.classList.remove('hidden');
+            els.countBadge.textContent = uniqueStreets.size; els.countBadge.classList.remove('hidden'); els.copyAllGlobalBtn.classList.remove('hidden');
         }
 
-        // Modals Interactivity
+        // List Interaction (added Shape Card Focus)
         els.resultsList.onclick = (e) => {
-            const id = e.target.closest('[data-id]')?.dataset.id;
-            if (e.target.closest('.copy-shape-btn')) {
-                const s = state.shapes.find(sh => sh.id === id);
-                if (s?.streets.length) copyToClipboard(s.streets.join(', '));
-            } else if (e.target.closest('.delete-shape-btn')) {
+            if (e.target.closest('.delete-shape-btn')) {
+                const id = e.target.closest('[data-id]')?.dataset.id;
+                if (state.editingShapeId === id) window.toggleEditShape(id); 
                 const idx = state.shapes.findIndex(sh => sh.id === id);
-                map.removeLayer(state.shapes[idx].layer); state.shapes.splice(idx, 1); renderShapes();
-                saveToLocalStorage();
+                map.removeLayer(state.shapes[idx].layer); state.shapes.splice(idx, 1); renderShapes(); saveToLocalStorage();
             } else if (e.target.closest('.add-street-btn')) {
+                const id = e.target.closest('[data-id]')?.dataset.id;
                 state.activeShapeIdInView = id; els.streetNamesInput.value = ''; els.streetAddModal.classList.remove('hidden');
             } else if (e.target.closest('.view-shape-btn')) {
-                state.activeShapeIdInView = id;
-                const shape = state.shapes.find(s => s.id === id);
-                if (shape) {
-                    els.viewPopupTitle.textContent = shape.name; els.viewPopupColor.style.backgroundColor = shape.color;
-                    renderViewPopupStreets(shape); els.viewPopup.classList.remove('hidden');
-                }
+                const id = e.target.closest('[data-id]')?.dataset.id;
+                window.viewShapeStreets(id);
             } else if (e.target.closest('.remove-street-btn')) {
-                const btn = e.target.closest('.remove-street-btn');
-                const shape = state.shapes.find(s => s.id === btn.dataset.shapeId);
-                if (shape) { 
-                    shape.streets = shape.streets.filter(s => s !== btn.dataset.street); 
-                    renderShapes(); 
-                    saveToLocalStorage();
-                }
+                const btn = e.target.closest('.remove-street-btn'); const shape = state.shapes.find(s => s.id === btn.dataset.shapeId);
+                if (shape) { shape.streets = shape.streets.filter(s => s.name !== btn.dataset.street); renderShapes(); saveToLocalStorage(); }
+            } else if (e.target.closest('.shape-header')) {
+                // Focus Map action: only proceed if user did not click on inputs or inner buttons
+                if (e.target.tagName.toLowerCase() === 'input' || e.target.closest('button')) return;
+                const card = e.target.closest('.shape-card');
+                if (card) window.focusAndBlinkShape(card.dataset.shapeId);
             }
         };
 
         els.resultsList.addEventListener('input', (e) => {
             if (e.target.classList.contains('shape-name-input')) {
                 const shape = state.shapes.find(s => s.id === e.target.dataset.id);
-                if (shape) { shape.name = e.target.value; saveToLocalStorage(); }
+                if (shape) { shape.name = e.target.value; saveToLocalStorage(); bindShapePopup(shape); }
             }
         });
 
         els.confirmStreetBtn.onclick = () => {
             const shape = state.shapes.find(s => s.id === state.activeShapeIdInView);
             if (shape) {
-                const newStreets = els.streetNamesInput.value.split(',').map(s => s.trim()).filter(s => s);
-                shape.streets = Array.from(new Set([...shape.streets, ...newStreets])).sort();
-                renderShapes(); saveToLocalStorage();
-                if (!els.viewPopup.classList.contains('hidden')) renderViewPopupStreets(shape);
+                const newStreetsRaw = els.streetNamesInput.value.split(',').map(s => s.trim()).filter(s => s);
+                const newStreets = newStreetsRaw.map(s => ({ name: s, type: classifyStreetByName(s) }));
+                const mapStr = new Map();
+                shape.streets.forEach(s => mapStr.set(s.name, s)); newStreets.forEach(s => mapStr.set(s.name, s));
+                shape.streets = Array.from(mapStr.values()).sort((a,b) => a.name.localeCompare(b.name));
+                
+                renderShapes(); saveToLocalStorage(); if (!els.viewPopup.classList.contains('hidden')) renderViewPopupStreets(shape);
             }
             els.streetAddModal.classList.add('hidden');
         };
@@ -1054,72 +981,152 @@
 
         els.closeViewPopup.onclick = () => els.viewPopup.classList.add('hidden');
         els.viewPopupAddBtn.onclick = () => { els.streetNamesInput.value = ''; els.streetAddModal.classList.remove('hidden'); };
-        els.viewPopupCopyBtn.onclick = () => {
-            const shape = state.shapes.find(s => s.id === state.activeShapeIdInView);
-            if (shape && shape.streets.length > 0) copyToClipboard(shape.streets.join(', '));
-        };
+        els.viewPopupCopyBtn.onclick = () => { const shape = state.shapes.find(s => s.id === state.activeShapeIdInView); if (shape && shape.streets.length > 0) copyToClipboard(shape.streets.map(s=>s.name).join(', ')); };
         
         function renderViewPopupStreets(shape) {
             els.viewPopupContent.innerHTML = shape.streets.length ? shape.streets.map(s => `
                 <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 flex justify-between items-center mb-2 group">
-                    <span class="font-medium text-gray-700">${s}</span>
-                    <button class="remove-street-btn text-gray-400 hover:text-red-500 transition-opacity p-2 bg-white rounded-md shadow-sm border border-gray-100" data-shape-id="${shape.id}" data-street="${s.replace(/"/g, '&quot;')}"><i class="fa-solid fa-trash text-xs"></i></button>
+                    <span class="font-bold text-gray-700">${s.name} <span class="text-[10px] text-gray-400 uppercase ml-2 font-normal">${s.type}</span></span>
+                    <button class="remove-street-btn text-gray-400 hover:text-red-500 transition-opacity p-2 bg-white rounded-md shadow-sm border border-gray-100" data-shape-id="${shape.id}" data-street="${s.name.replace(/"/g, '&quot;')}"><i class="fa-solid fa-trash text-xs"></i></button>
                 </div>
             `).join('') : '<p class="text-gray-400 p-4 italic text-center">No streets found.</p>';
         }
         els.viewPopupContent.onclick = (e) => {
             const btn = e.target.closest('.remove-street-btn');
-            if (btn) {
-                const shape = state.shapes.find(s => s.id === btn.dataset.shapeId);
-                if (shape) {
-                    shape.streets = shape.streets.filter(s => s !== btn.dataset.street);
-                    renderShapes(); renderViewPopupStreets(shape); saveToLocalStorage();
-                }
-            }
+            if (btn) { const shape = state.shapes.find(s => s.id === btn.dataset.shapeId); if (shape) { shape.streets = shape.streets.filter(s => s.name !== btn.dataset.street); renderShapes(); renderViewPopupStreets(shape); saveToLocalStorage(); } }
         };
 
-        // Helpers
+        function startAreaScreenshot() {
+            setDrawMode('none'); ssState.active = true; els.map.classList.add('drawing-cursor');
+            els.screenshotAreaBtn.classList.add('bg-indigo-200', 'text-indigo-800'); updateStatus("Click to set the first corner of your exact screenshot area."); toggleMobilePanel(false);
+        }
+
+        function cancelAreaScreenshot() {
+            ssState.active = false; ssState.pins.forEach(p => map.removeLayer(p));
+            if (ssState.rect) map.removeLayer(ssState.rect); if (ssState.ui) map.removeLayer(ssState.ui);
+            ssState.pins = []; ssState.rect = null; ssState.ui = null; els.map.classList.remove('drawing-cursor'); els.screenshotAreaBtn.classList.remove('bg-indigo-200', 'text-indigo-800'); updateStatus("Auto-save is active.");
+        }
+
+        function setupFourPins(bounds) {
+            const corners = [bounds.getNorthWest(), bounds.getNorthEast(), bounds.getSouthEast(), bounds.getSouthWest()];
+            const pinIcon = L.divIcon({ className: 'bg-indigo-600 border-2 border-white rounded-full shadow-lg', iconSize: [20, 20], iconAnchor: [10, 10] });
+            corners.forEach((latlng, idx) => {
+                const m = L.marker(latlng, { icon: pinIcon, draggable: true, zIndexOffset: 6000 }).addTo(map);
+                m.on('drag', () => handlePinDrag(idx, m.getLatLng())); ssState.pins.push(m);
+            });
+            ssState.rect = L.rectangle(bounds, { color: '#4f46e5', weight: 2, fillOpacity: 0.1, dashArray: '5,5', interactive: false }).addTo(map);
+            const uiHtml = `<div class="bg-white p-2.5 rounded-xl shadow-[0_5px_20px_rgba(0,0,0,0.3)] flex gap-2 pointer-events-auto border border-gray-200"><button onclick="captureAreaConfirm()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm"><i class="fa-solid fa-camera mr-1"></i> Capture HD</button><button onclick="cancelAreaScreenshot()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-200 transition-colors">Cancel</button></div>`;
+            const uiIcon = L.divIcon({ className: '', html: uiHtml, iconSize: [220, 50], iconAnchor: [110, 25] });
+            ssState.ui = L.marker(bounds.getCenter(), { icon: uiIcon, zIndexOffset: 7000 }).addTo(map); updateStatus("Drag the 4 corner pins to adjust the exact area, then click Capture HD.");
+        }
+
+        function handlePinDrag(draggedIdx, newLatLng) {
+            const oppIdx = (draggedIdx + 2) % 4; const oppLatLng = ssState.pins[oppIdx].getLatLng(); const bounds = L.latLngBounds(newLatLng, oppLatLng);
+            ssState.pins[0].setLatLng(bounds.getNorthWest()); ssState.pins[1].setLatLng(bounds.getNorthEast()); ssState.pins[2].setLatLng(bounds.getSouthEast()); ssState.pins[3].setLatLng(bounds.getSouthWest());
+            ssState.rect.setBounds(bounds); ssState.ui.setLatLng(bounds.getCenter());
+        }
+
+        window.captureAreaConfirm = async function() { const bounds = ssState.rect.getBounds(); cancelAreaScreenshot(); await captureHighRes(bounds); }
+
+        async function captureHighRes(bounds = null) {
+            showLoading(true, "Capturing Map", "Processing image data..."); els.loader.classList.remove('bg-white/90'); els.loader.classList.add('bg-white'); 
+            
+            const originalStyle = { width: els.map.style.width, height: els.map.style.height, position: els.map.style.position, zIndex: els.map.style.zIndex, top: els.map.style.top, left: els.map.style.left };
+            const originalCenter = map.getCenter(); const originalZoom = map.getZoom();
+
+            let targetWidth = 2560; let targetHeight = 1440;
+            if (bounds) {
+                const p1 = map.project(bounds.getNorthWest(), 10); const p2 = map.project(bounds.getSouthEast(), 10);
+                const ratio = Math.abs(p1.x - p2.x) / Math.abs(p1.y - p2.y); targetHeight = Math.round(targetWidth / ratio);
+                if (targetHeight > 4000) { targetHeight = 4000; targetWidth = Math.round(targetHeight * ratio); }
+            }
+
+            document.body.classList.add('is-screenshotting');
+            Object.assign(els.map.style, { position: 'fixed', top: '0', left: '0', width: `${targetWidth}px`, height: `${targetHeight}px`, zIndex: '-10' });
+
+            map.invalidateSize({ animate: false }); if (bounds) map.fitBounds(bounds, { animate: false, padding: [0, 0] }); await new Promise(r => setTimeout(r, 2000));
+
+            try {
+                els.loaderSubText.textContent = "Stitching and cropping...";
+                const fullCanvas = await html2canvas(els.map, { useCORS: true, allowTaint: true, logging: false, scale: 1, backgroundColor: '#f8fafc' });
+                let finalCanvas = fullCanvas;
+
+                if (bounds) {
+                    const nw = map.latLngToContainerPoint(bounds.getNorthWest()); const se = map.latLngToContainerPoint(bounds.getSouthEast());
+                    const cropX = Math.max(0, Math.round(Math.min(nw.x, se.x))); const cropY = Math.max(0, Math.round(Math.min(nw.y, se.y)));
+                    const cropW = Math.round(Math.abs(se.x - nw.x)); const cropH = Math.round(Math.abs(se.y - nw.y));
+                    const cropCanvas = document.createElement('canvas'); cropCanvas.width = cropW; cropCanvas.height = cropH;
+                    const ctx = cropCanvas.getContext('2d'); ctx.drawImage(fullCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH); finalCanvas = cropCanvas;
+                }
+                
+                const image = finalCanvas.toDataURL("image/jpeg", 0.95); const link = document.createElement('a'); link.href = image;
+                link.download = `Tricon_HD_${bounds ? 'Area' : 'View'}_${Date.now()}.jpg`; link.click(); updateStatus("Screenshot saved successfully.");
+            } catch (err) { updateStatus("Failed to take screenshot."); } 
+            finally {
+                Object.assign(els.map.style, originalStyle); map.invalidateSize({ animate: false }); map.setView(originalCenter, originalZoom, { animate: false });
+                document.body.classList.remove('is-screenshotting'); els.loader.classList.remove('bg-white'); els.loader.classList.add('bg-white/90'); showLoading(false);
+            }
+        }
+
+        els.screenshotViewBtn.onclick = () => { setDrawMode('none'); captureHighRes(null); };
+        els.screenshotAreaBtn.onclick = startAreaScreenshot;
+
+        function startJoystickLoop(vx, vy) { stopJoystickLoop(); state.joystickLoop = setInterval(() => { const center = map.getCenter(); const factor = 0.00001 * Math.pow(2, 18 - map.getZoom()); map.setView([center.lat + vy * factor, center.lng + vx * factor], map.getZoom(), { animate: false }); }, 16); }
+        function stopJoystickLoop() { if (state.joystickLoop) { clearInterval(state.joystickLoop); state.joystickLoop = null; } }
+
+        els.joystickContainer.addEventListener('touchstart', (e) => { state.joystickActive = true; handleJoystickMove(e); });
+        els.joystickContainer.addEventListener('touchmove', (e) => { if (state.joystickActive) { handleJoystickMove(e); e.preventDefault(); } });
+        els.joystickContainer.addEventListener('touchend', () => { state.joystickActive = false; els.joystickKnob.style.transform = 'translate(-50%, -50%)'; stopJoystickLoop(); });
+
+        function handleJoystickMove(e) {
+            const touch = e.touches[0]; const rect = els.joystickContainer.getBoundingClientRect();
+            let dx = touch.clientX - (rect.left + rect.width / 2); let dy = touch.clientY - (rect.top + rect.height / 2);
+            const dist = Math.sqrt(dx*dx + dy*dy); const max = rect.width / 2;
+            if (dist > max) { dx *= max / dist; dy *= max / dist; }
+            els.joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`; startJoystickLoop(dx * 0.5, -dy * 0.5);
+        }
+
+        els.map.addEventListener('mousedown', (e) => { if ((state.drawMode === 'polygon' || state.drawMode === 'line') && e.button === 2) { state.isRightClickDragging = true; state.lastRightClickPos = { x: e.clientX, y: e.clientY }; els.map.style.cursor = 'grabbing'; } });
+        window.addEventListener('mousemove', (e) => { if (state.isRightClickDragging) { const dx = e.clientX - state.lastRightClickPos.x; const dy = e.clientY - state.lastRightClickPos.y; map.panBy([-dx, -dy], { animate: false }); state.lastRightClickPos = { x: e.clientX, y: e.clientY }; } });
+        window.addEventListener('mouseup', (e) => { if (e.button === 2) { state.isRightClickDragging = false; if (state.drawMode === 'polygon' || state.drawMode === 'line') els.map.style.cursor = 'crosshair'; } });
+        els.map.addEventListener('contextmenu', (e) => { if (state.drawMode !== 'none' || ssState.active) e.preventDefault(); });
+
+        function handleTwoFingerPanStart(e) { if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length >= 2) map.dragging.enable(); }
+        function handleTwoFingerPanEnd(e) { if (e.originalEvent && (!e.originalEvent.touches || e.originalEvent.touches.length < 2)) map.dragging.disable(); }
+        function disableMapInteractions() { map.dragging.disable(); map.doubleClickZoom.disable(); map.addHandler('twoFingerPan', L.Handler.TouchExtend); if (map.touchExtend) map.touchExtend.enable(); map.on('touchstart', handleTwoFingerPanStart); map.on('touchend', handleTwoFingerPanEnd); }
+        function enableMapInteractions() { map.dragging.enable(); map.touchZoom.enable(); map.doubleClickZoom.enable(); map.scrollWheelZoom.enable(); map.off('touchstart', handleTwoFingerPanStart); map.off('touchend', handleTwoFingerPanEnd); }
+
         function copyToClipboard(textStr, successMsg) {
-            const textArea = document.createElement("textarea");
-            textArea.value = textStr; textArea.style.position = "fixed"; textArea.style.opacity = "0";
+            const textArea = document.createElement("textarea"); textArea.value = textStr; textArea.style.position = "fixed"; textArea.style.opacity = "0";
             document.body.appendChild(textArea); textArea.select();
-            try { document.execCommand('copy'); updateStatus(successMsg || "Copied to clipboard!"); } 
-            catch (err) { updateStatus("Failed to copy."); }
+            try { document.execCommand('copy'); updateStatus(successMsg || "Copied to clipboard!"); } catch (err) { updateStatus("Failed to copy."); }
             document.body.removeChild(textArea);
         }
 
         els.copyAllGlobalBtn.onclick = () => {
-            const allStreets = new Set();
-            state.shapes.forEach(shape => shape.streets.forEach(s => allStreets.add(s)));
+            const allStreets = new Set(); state.shapes.forEach(shape => shape.streets.forEach(s => allStreets.add(s.name)));
             if (allStreets.size > 0) copyToClipboard(Array.from(allStreets).sort().join(', '), "All streets copied!");
         };
 
         function updateStatus(msg) { els.statusText.innerHTML = msg; }
-        function showLoading(show, title = "Loading...", subtitle = "") { 
-            els.loader.classList.toggle('hidden', !show); 
-            els.loaderText.textContent = title; els.loaderSubText.textContent = subtitle;
-        }
+        function showLoading(show, title = "Loading...", subtitle = "") { els.loader.classList.toggle('hidden', !show); els.loaderText.textContent = title; els.loaderSubText.textContent = subtitle; }
 
         function clearMap(prompt = true) {
             if(prompt && state.shapes.length === 0 && state.dots.length === 0) return;
-            setDrawMode('none');
+            setDrawMode('none'); state.editingShapeId = null; state.editMarkers.forEach(m => map.removeLayer(m)); state.editMarkers = [];
             state.shapes.forEach(s => map.removeLayer(s.layer)); state.dots.forEach(d => map.removeLayer(d.marker));
-            state.shapes = []; state.dots = []; state.colorIndex = 0;
-            renderShapes(); updateStatus("Map cleared."); saveToLocalStorage();
+            state.shapes = []; state.dots = []; renderShapes(); updateStatus("Map cleared."); saveToLocalStorage();
         }
         els.resetBtn.onclick = () => clearMap(true);
 
-        // Export/Import Data
+        // Data Export
         els.exportBtn.onclick = () => {
-            const data = {
-                shapes: state.shapes.map(s => ({ type: s.type, name: s.name, color: s.color, streets: s.streets, latlngs: s.latlngs })),
-                dots: state.dots.map(d => ({ text: d.text, color: d.color, latlng: d.latlng }))
-            };
-            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-            const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
+            const data = { shapes: state.shapes.map(s => ({ type: s.type, name: s.name, color: s.color, streets: s.streets, latlngs: s.latlngs })), dots: state.dots.map(d => ({ text: d.text, color: d.color, latlng: d.latlng })) };
+            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
             link.download = `Tricon_Data_${new Date().toISOString().slice(0,10)}.json`; link.click();
         };
 
+        // Standard Import (Clears Map)
         els.importFile.onchange = (e) => {
             const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -1127,42 +1134,65 @@
                 try {
                     const data = JSON.parse(event.target.result); clearMap(false);
                     data.shapes?.forEach(s => {
-                        const type = s.type || 'polygon';
-                        let layer;
-                        if (type === 'line') layer = L.polyline(s.latlngs, { color: s.color, weight: 6, opacity: 0.8 }).addTo(map);
-                        else layer = L.polygon(s.latlngs, { color: s.color, stroke: false, fillColor: s.color, fillOpacity: 0.4 }).addTo(map);
-                        state.shapes.push({ id: Date.now().toString() + Math.random(), type, name: s.name, color: s.color, layer: layer, streets: s.streets, latlngs: s.latlngs });
+                        const type = s.type || 'polygon'; let layer;
+                        if (type === 'line') layer = L.polyline(s.latlngs, { color: s.color, weight: 6, opacity: 0.8 }).addTo(map); else layer = L.polygon(s.latlngs, { color: s.color, stroke: false, fillColor: s.color, fillOpacity: 0.4 }).addTo(map);
+                        
+                        const migratedStreets = (s.streets || []).map(st => typeof st === 'string' ? { name: st, type: classifyStreetByName(st) } : st);
+                        const shapeObj = { id: Date.now().toString() + Math.random(), type, name: s.name, color: s.color, layer: layer, streets: migratedStreets, latlngs: s.latlngs };
+                        state.shapes.push(shapeObj); bindShapePopup(shapeObj);
                     });
-                    const dots = data.dots || data.notes || [];
-                    dots.forEach(d => createDotMarker(Date.now() + Math.random().toString(), d.text || '', d.color || '#fef08a', d.latlng));
-                    renderShapes(); updateStatus("Data imported."); saveToLocalStorage();
-                } catch (err) { updateStatus("Import failed."); }
-            };
-            reader.readAsText(file);
+                    const dots = data.dots || data.notes || []; dots.forEach(d => createDotMarker(Date.now() + Math.random().toString(), d.text || '', d.color || '#ef4444', d.latlng));
+                    renderShapes(); updateStatus("Data opened. Previous map cleared."); saveToLocalStorage();
+                } catch (err) { updateStatus("Open failed."); }
+            }; reader.readAsText(file);
+            e.target.value = ''; // Reset
         };
 
-        // Login Logic
+        // Merge Import (Combines Maps)
+        els.mergeFile.onchange = (e) => {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result); 
+                    let shapesMerged = 0; let dotsMerged = 0;
+
+                    data.shapes?.forEach(s => {
+                        const type = s.type || 'polygon'; let layer;
+                        if (type === 'line') layer = L.polyline(s.latlngs, { color: s.color, weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round' }).addTo(map); 
+                        else layer = L.polygon(s.latlngs, { color: s.color, stroke: false, fillColor: s.color, fillOpacity: 0.4 }).addTo(map);
+                        
+                        const migratedStreets = (s.streets || []).map(st => typeof st === 'string' ? { name: st, type: classifyStreetByName(st) } : st);
+                        const shapeObj = { id: Date.now().toString() + Math.random(), type, name: s.name, color: s.color, layer: layer, streets: migratedStreets, latlngs: s.latlngs };
+                        state.shapes.push(shapeObj); bindShapePopup(shapeObj); shapesMerged++;
+                    });
+                    
+                    const dots = data.dots || data.notes || []; 
+                    dots.forEach(d => {
+                        createDotMarker(Date.now().toString() + Math.random(), d.text || '', d.color || '#ef4444', d.latlng); dotsMerged++;
+                    });
+                    
+                    renderShapes(); updateStatus(`Merged ${shapesMerged} shapes & ${dotsMerged} dots successfully.`); 
+                    saveToLocalStorage(); setMapElementsInteractive(state.drawMode === 'none');
+                } catch (err) { updateStatus("Merge failed. Invalid file format."); }
+            }; reader.readAsText(file);
+            e.target.value = ''; // Reset
+        };
+
         const passcodeInput = document.getElementById('passcodeInput');
         document.getElementById('togglePasscodeBtn').addEventListener('click', () => {
             const icon = document.getElementById('togglePasscodeIcon');
             if (passcodeInput.type === 'password') { passcodeInput.type = 'text'; icon.classList.replace('fa-eye', 'fa-eye-slash'); } 
-            else { passcodeInput.type = 'password'; icon.classList.replace('fa-eye-slash', 'fa-eye'); }
-            passcodeInput.focus();
+            else { passcodeInput.type = 'password'; icon.classList.replace('fa-eye-slash', 'fa-eye'); } passcodeInput.focus();
         });
 
         function handleLogin() {
             if (passcodeInput.value === 'mddmms') { document.getElementById('loginOverlay').classList.add('hidden'); } 
-            else {
-                document.getElementById('loginError').style.opacity = '1'; passcodeInput.value = '';
-                setTimeout(() => document.getElementById('loginError').style.opacity = '0', 2000);
-            }
+            else { document.getElementById('loginError').style.opacity = '1'; passcodeInput.value = ''; setTimeout(() => document.getElementById('loginError').style.opacity = '0', 2000); }
         }
-        document.getElementById('loginBtn').onclick = handleLogin;
-        passcodeInput.onkeypress = (e) => { if (e.key === 'Enter') handleLogin(); };
+        document.getElementById('loginBtn').onclick = handleLogin; passcodeInput.onkeypress = (e) => { if (e.key === 'Enter') handleLogin(); };
 
-        // Initialize state on load
-        loadFromLocalStorage();
-        window.onload = () => passcodeInput.focus();
+        loadFromLocalStorage(); window.onload = () => passcodeInput.focus();
     </script>
 </body>
 </html>
